@@ -6,6 +6,8 @@ This project is a monorepo with:
 - `runner/` (Node + `@openai/codex-sdk`)
 - `backend/` (Python)
 
+The primary supported workflow is running all services via `docker compose`.
+
 ## Pinned toolchain versions
 
 - **Node.js**: **20 LTS** (minimum supported: Node 18+; recommended: Node 20 LTS)
@@ -17,6 +19,42 @@ Rationale:
 
 - `@openai/codex-sdk` requires **Node 18+**.
 - Next.js 14 is happiest on modern LTS (Node 18+).
+
+## Docker Compose (recommended)
+
+### 1) Set the API key
+
+Create `.env` at repo root:
+
+```bash
+CODEX_API_KEY=...
+```
+
+### 2) Build and run
+
+```bash
+docker compose up --build
+```
+
+### 3) Ports
+
+- Frontend: `http://localhost:9100`
+- Backend: `http://localhost:9101`
+- Runner: `http://localhost:9102`
+- Postgres: `localhost:9103`
+
+### 4) Codex runner notes (Docker)
+
+The runner uses `@openai/codex-sdk`, which invokes the Codex CLI under the hood.
+
+In this repo:
+- The runner image installs the Codex CLI and required TLS certificates.
+- Codex sandboxing on Linux uses Landlock/seccomp and can fail inside Docker.
+- The runner ships a Codex config at `runner/codex-config.toml` which is copied into the container at `/root/.codex/config.toml` and sets:
+  - `sandbox_mode = "danger-full-access"`
+  - `approval_policy = "never"`
+
+This relies on Docker as the isolation boundary.
 
 ## Windows (dev machine) setup
 

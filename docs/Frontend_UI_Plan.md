@@ -126,9 +126,10 @@ Acceptance criteria:
 - Added TailwindCSS + PostCSS configuration and global styles.
 - Implemented a Phase 1 SaaS-style app shell (sidebar + top nav) and placeholder pages.
 - Moved the Codex workflow into `/codex` under the new app shell.
-- Fixed reported IDE problems by removing the `next/navigation` import from the root page and removing the explicit `types: ["node"]` entry from the runner `tsconfig.json`.
+- Implemented Next.js API routes under `/api/*` to proxy to the backend so the browser does not need to call internal service URLs.
+- Wired the Codex page UI to the backend session/run/event endpoints via `/api/sessions`, `/api/sessions/[sessionId]/prompt`, and `/api/runs/[runId]/events`.
 - Implemented `/` -> `/dashboard` redirect via `next.config.mjs` redirects.
 - Added basic sidebar active-route highlighting (client-side) without relying on `next/navigation`.
-- Note: the runner requires Node typings for correct TypeScript compilation; local IDE errors are resolved by installing dependencies rather than removing Node types.
+- Resolved a Next.js route-group conflict by ensuring only one page resolves to each path (for example `/codex` lives under the `(app)` route group).
 - Added `docs/Dev_Environment.md` to pin Node.js 20 LTS and document Windows/AWS Ubuntu 24.04 setup.
 - Installed Node.js locally on Windows and installed `runner/` + `frontend/` npm dependencies (using `npm.cmd` to bypass PowerShell `npm.ps1` execution policy restrictions).
