@@ -46,12 +46,24 @@ type Run = {
   completed_at: string | null;
 };
 
+type DiscoveredFolder = {
+  folder_name: string;
+  path: string;
+  has_git: boolean;
+  git_remote: string | null;
+  suggested_name: string;
+};
+
 export default function CodexPage() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [showImportForm, setShowImportForm] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [discoveredFolders, setDiscoveredFolders] = useState<DiscoveredFolder[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+  const [folderNames, setFolderNames] = useState<Record<string, string>>({});
   const [repoUrl, setRepoUrl] = useState("");
   const [runnerType, setRunnerType] = useState<RunnerType>("codex");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -216,6 +228,60 @@ export default function CodexPage() {
     await fetchWorkspaces();
   }
 
+  async function onScanLocal() {
+    setStatus("scanning");
+    try {
+      const r = await fetch("/api/workspaces/scan");
+      if (r.ok) {
+        const data = await r.json();
+        setDiscoveredFolders(data.discovered || []);
+        const names: Record<string, string> = {};
+        for (const f of data.discovered || []) {
+          names[f.folder_name] = f.suggested_name;
+        }
+        setFolderNames(names);
+        setSelectedFolders(new Set((data.discovered || []).map((f: DiscoveredFolder) => f.folder_name)));
+        setShowScanModal(true);
+      }
+    } catch (e) {
+      console.error("Failed to scan:", e);
+    }
+    setStatus("idle");
+  }
+
+  async function onImportSelectedFolders() {
+    setStatus("importing");
+    for (const folderName of selectedFolders) {
+      const displayName = folderNames[folderName] || folderName;
+      try {
+        await fetch("/api/workspaces/import-local", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folder_name: folderName, display_name: displayName })
+        });
+      } catch (e) {
+        console.error(`Failed to import ${folderName}:`, e);
+      }
+    }
+    setShowScanModal(false);
+    setDiscoveredFolders([]);
+    setSelectedFolders(new Set());
+    setStatus("idle");
+    await fetchWorkspaces();
+  }
+
+  function toggleFolderSelection(folderName: string) {
+    setSelectedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderName)) {
+        next.delete(folderName);
+      } else {
+        next.add(folderName);
+      }
+      return next;
+    });
+  }
+
   async function onCreateSession() {
     if (!selectedWorkspaceId) return;
     setStatus("creating-session");
@@ -309,12 +375,22 @@ export default function CodexPage() {
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-zinc-900">Workspace</div>
-              <button
-                onClick={() => setShowImportForm(!showImportForm)}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                {showImportForm ? "Cancel" : "+ Import"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={onScanLocal}
+                  disabled={status === "scanning"}
+                  className="text-xs text-zinc-600 hover:text-zinc-800"
+                  title="Scan for local folders"
+                >
+                  🔍 Scan
+                </button>
+                <button
+                  onClick={() => setShowImportForm(!showImportForm)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  {showImportForm ? "Cancel" : "+ Import"}
+                </button>
+              </div>
             </div>
             <div className="mt-3 space-y-3">
               {showImportForm ? (
@@ -572,6 +648,90 @@ export default function CodexPage() {
           )}
         </div>
       </div>
+
+      {/* Scan Local Modal */}
+      {showScanModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-zinc-900">Discovered Local Folders</h3>
+              <button
+                onClick={() => setShowScanModal(false)}
+                className="text-zinc-500 hover:text-zinc-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {discoveredFolders.length === 0 ? (
+              <p className="text-sm text-zinc-500 py-4">
+                No new folders found. Copy a project folder to <code className="bg-zinc-100 px-1 rounded">/workspaces/name/repo/</code> and scan again.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {discoveredFolders.map((folder) => (
+                  <div
+                    key={folder.folder_name}
+                    className={`p-3 rounded-lg border ${
+                      selectedFolders.has(folder.folder_name)
+                        ? "border-blue-300 bg-blue-50"
+                        : "border-zinc-200 bg-zinc-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedFolders.has(folder.folder_name)}
+                        onChange={() => toggleFolderSelection(folder.folder_name)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-zinc-900">{folder.folder_name}</span>
+                          {folder.has_git && (
+                            <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">git</span>
+                          )}
+                        </div>
+                        {folder.git_remote && (
+                          <div className="text-xs text-zinc-500 truncate mt-0.5">{folder.git_remote}</div>
+                        )}
+                        <label className="block mt-2">
+                          <span className="text-xs text-zinc-600">Display name:</span>
+                          <input
+                            type="text"
+                            value={folderNames[folder.folder_name] || ""}
+                            onChange={(e) => setFolderNames(prev => ({
+                              ...prev,
+                              [folder.folder_name]: e.target.value
+                            }))}
+                            className="mt-1 w-full rounded border border-zinc-300 px-2 py-1 text-sm"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-zinc-200">
+              <button
+                onClick={() => setShowScanModal(false)}
+                className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onImportSelectedFolders}
+                disabled={selectedFolders.size === 0 || status === "importing"}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                Import Selected ({selectedFolders.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

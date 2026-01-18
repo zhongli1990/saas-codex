@@ -151,6 +151,23 @@ class WorkspaceListResponse(BaseModel):
     items: list[WorkspaceResponse]
 
 
+class DiscoveredFolder(BaseModel):
+    folder_name: str
+    path: str
+    has_git: bool
+    git_remote: Optional[str] = None
+    suggested_name: str
+
+
+class ScanWorkspacesResponse(BaseModel):
+    discovered: list[DiscoveredFolder]
+
+
+class ImportLocalRequest(BaseModel):
+    folder_name: str
+    display_name: Optional[str] = None
+
+
 class CreateSessionRequest(BaseModel):
     repo_url: Optional[str] = None
     workspace_id: Optional[str] = None
@@ -299,6 +316,133 @@ async def import_workspace(
         local_path=local_path
     )
 
+    return WorkspaceResponse(
+        workspace_id=str(workspace.id),
+        display_name=workspace.display_name,
+        source_type=workspace.source_type,
+        source_uri=workspace.source_uri,
+        local_path=workspace.local_path,
+        created_at=_format_datetime(workspace.created_at)
+    )
+
+
+@app.get("/api/workspaces/scan", response_model=ScanWorkspacesResponse)
+async def scan_workspaces(db: AsyncSession = Depends(get_db)) -> ScanWorkspacesResponse:
+    """Scan /workspaces for unregistered folders."""
+    workspaces_path = pathlib.Path(WORKSPACES_ROOT)
+    if not workspaces_path.exists():
+        return ScanWorkspacesResponse(discovered=[])
+    
+    repo = WorkspaceRepository(db)
+    registered_paths = set()
+    all_workspaces = await repo.list_all()
+    for ws in all_workspaces:
+        registered_paths.add(ws.local_path)
+    
+    discovered = []
+    for folder in workspaces_path.iterdir():
+        if not folder.is_dir():
+            continue
+        
+        repo_path = folder / "repo"
+        if not repo_path.exists():
+            continue
+        
+        path_str = str(repo_path)
+        if path_str in registered_paths:
+            continue
+        
+        # Check for git remote
+        has_git = (repo_path / ".git").exists()
+        git_remote = None
+        suggested_name = folder.name
+        
+        if has_git:
+            try:
+                result = subprocess.run(
+                    ["git", "remote", "get-url", "origin"],
+                    cwd=str(repo_path),
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    git_remote = result.stdout.strip()
+                    suggested_name = _derive_display_name("github", git_remote)
+            except Exception:
+                pass
+        
+        discovered.append(DiscoveredFolder(
+            folder_name=folder.name,
+            path=path_str,
+            has_git=has_git,
+            git_remote=git_remote,
+            suggested_name=suggested_name
+        ))
+    
+    return ScanWorkspacesResponse(discovered=discovered)
+
+
+@app.post("/api/workspaces/import-local", response_model=WorkspaceResponse)
+async def import_local_workspace(
+    req: ImportLocalRequest,
+    db: AsyncSession = Depends(get_db)
+) -> WorkspaceResponse:
+    """Import a manually copied local folder as a workspace."""
+    folder_path = pathlib.Path(WORKSPACES_ROOT) / req.folder_name / "repo"
+    
+    if not folder_path.exists():
+        raise HTTPException(status_code=400, detail=f"Folder not found: {req.folder_name}/repo")
+    
+    local_path = str(folder_path)
+    _ensure_under_workspaces_root(local_path)
+    
+    repo = WorkspaceRepository(db)
+    
+    # Check if already registered by path
+    all_workspaces = await repo.list_all()
+    for ws in all_workspaces:
+        if ws.local_path == local_path:
+            return WorkspaceResponse(
+                workspace_id=str(ws.id),
+                display_name=ws.display_name,
+                source_type=ws.source_type,
+                source_uri=ws.source_uri,
+                local_path=ws.local_path,
+                created_at=_format_datetime(ws.created_at)
+            )
+    
+    # Determine source info
+    has_git = (folder_path / ".git").exists()
+    git_remote = None
+    source_type = "local"
+    
+    if has_git:
+        try:
+            result = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                cwd=str(folder_path),
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                git_remote = result.stdout.strip()
+                source_type = "github" if "github.com" in git_remote else "local"
+        except Exception:
+            pass
+    
+    source_uri = git_remote or local_path
+    display_name = req.display_name or (
+        _derive_display_name("github", git_remote) if git_remote 
+        else req.folder_name
+    )
+    
+    workspace = await repo.create(
+        source_type=source_type,
+        source_uri=source_uri,
+        display_name=display_name,
+        local_path=local_path
+    )
+    
     return WorkspaceResponse(
         workspace_id=str(workspace.id),
         display_name=workspace.display_name,
