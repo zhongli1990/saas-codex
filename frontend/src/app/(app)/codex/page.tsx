@@ -113,6 +113,25 @@ function CodexPageContent() {
     }
   }, []);
 
+  const loadRunDetail = useCallback(async (runIdToLoad: string) => {
+    try {
+      setStatus("loading");
+      const r = await fetch(`/api/runs/${runIdToLoad}/detail`);
+      if (r.ok) {
+        const data = await r.json();
+        setPrompt(data.prompt);
+        setRunId(runIdToLoad);
+        setEvents(data.events || []);
+        setStatus("completed");
+      } else {
+        setStatus("error: failed to load run");
+      }
+    } catch (e) {
+      console.error("Failed to load run detail:", e);
+      setStatus("error: failed to load run");
+    }
+  }, [setRunId, setEvents, setStatus]);
+
   useEffect(() => {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
@@ -563,11 +582,17 @@ function CodexPageContent() {
           {sessionId && runs.length > 0 && (
             <div className="rounded-lg border border-zinc-200 bg-white p-4">
               <div className="text-sm font-medium text-zinc-900">Run History</div>
+              <p className="text-xs text-zinc-500 mt-1">Click to load prompt &amp; response</p>
               <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
                 {runs.map((r) => (
                   <div
                     key={r.run_id}
-                    className="px-2 py-1.5 rounded text-xs bg-zinc-50"
+                    onClick={() => loadRunDetail(r.run_id)}
+                    className={`px-2 py-1.5 rounded text-xs cursor-pointer transition-colors ${
+                      runId === r.run_id
+                        ? "bg-blue-100 border border-blue-300"
+                        : "bg-zinc-50 hover:bg-zinc-100"
+                    }`}
                   >
                     <div className="flex justify-between">
                       <span className={`font-medium ${

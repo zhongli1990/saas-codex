@@ -1,5 +1,25 @@
 # Release Notes
 
+## v0.2.6 (Jan 18, 2026)
+
+### Click-to-Load Run History
+
+This release adds the ability to click on run history items to load their prompt and response.
+
+#### Features
+- **Clickable Run History**: Run history items in Codex page are now clickable
+- **Load Prompt**: Clicking a run loads its prompt into the Prompt field
+- **Load Events**: Clicking a run loads its persisted events into the Output area
+- **Visual Feedback**: Selected run highlighted with blue background/border
+
+#### New Endpoints
+- `GET /api/runs/{run_id}/detail` - Returns run prompt, status, and all persisted events
+
+#### New Files
+- `frontend/src/app/api/runs/[runId]/detail/route.ts` - API proxy for run detail
+
+---
+
 ## v0.2.5 (Jan 18, 2026)
 
 ### UI/UX Improvements & Bug Fixes

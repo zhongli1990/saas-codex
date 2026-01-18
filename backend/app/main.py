@@ -759,6 +759,38 @@ async def get_run(
     )
 
 
+class RunDetailResponse(BaseModel):
+    run_id: str
+    prompt: str
+    status: str
+    created_at: str
+    completed_at: Optional[str]
+    events: list[dict]
+
+
+@app.get("/api/runs/{run_id}/detail", response_model=RunDetailResponse)
+async def get_run_detail(
+    run_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> RunDetailResponse:
+    """Get run details including prompt and all persisted events."""
+    run_repo = RunRepository(db)
+    run = await run_repo.get_by_id(uuid.UUID(run_id))
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    
+    events = await run_repo.get_events(run.id)
+    
+    return RunDetailResponse(
+        run_id=str(run.id),
+        prompt=run.prompt,
+        status=run.status,
+        created_at=run.created_at.isoformat(),
+        completed_at=run.completed_at.isoformat() if run.completed_at else None,
+        events=[{"at": int(e.at.timestamp() * 1000), "data": e.raw_json} for e in events]
+    )
+
+
 @app.get("/api/runs/{run_id}/transcript", response_model=TranscriptResponse)
 async def get_run_transcript(
     run_id: str,
