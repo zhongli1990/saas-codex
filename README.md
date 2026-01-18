@@ -12,9 +12,10 @@ The long-term vision is to provide an "integration engineering copilot" that can
 ## Current Release: v0.3.0 (dev/v0.2.0 branch)
 
 ### v0.3.0 (Latest - Jan 18, 2026)
-- **Dashboard Uplift**: Real metrics, activity feed, quick actions, system health status
+- **Dashboard Uplift**: Real metrics, activity feed, quick actions, system health status, auto-refresh
 - **Projects Uplift**: Workspace cards with search, session expansion, quick navigation
-- **Settings Uplift**: Sidebar navigation, general/runner/appearance settings, about page
+- **Settings Uplift**: Sidebar navigation, localStorage persistence, immediate theme switching
+- **Runner Models**: Accurate model lists - Codex SDK v0.84.0, Claude Sonnet 4 (2025-05-14)
 - **New Endpoints**: `GET /api/stats/dashboard`, `GET /api/health/services`
 
 ### v0.2.6 (Jan 18, 2026)

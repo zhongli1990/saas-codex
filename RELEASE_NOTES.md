@@ -25,9 +25,21 @@ This major release transforms the Dashboard, Projects, and Settings tabs from pl
 #### Settings Tab
 - **Sidebar Navigation**: Clean category navigation (General, Runners, Appearance, About)
 - **General Settings**: Default runner selection, session timeout configuration, auto-save toggle
-- **Runner Configuration**: Model selection (GPT-4/Claude 3), max tokens, temperature slider, timeout
-- **Appearance Settings**: Theme (light/dark/system), compact mode, code font, syntax theme
+- **Runner Configuration**: Accurate model lists with current SDK/API versions
+- **Appearance Settings**: Theme (light/dark/system) with immediate application, compact mode, code font, syntax theme
 - **About Page**: Version info, build hash, license, and resource links
+- **localStorage Persistence**: All settings saved to browser localStorage and persist across sessions
+- **Save Confirmation**: Visual "✓ Saved" feedback when settings are saved
+
+#### Settings Tab - Model Configuration (Updated)
+- **Codex Runner**: Uses `@openai/codex-sdk` v0.84.0 (agentic coding SDK)
+- **Claude Models** (accurate current list):
+  - Claude Sonnet 4 (2025-05-14) - Latest, default
+  - Claude 3.5 Sonnet (2024-10-22)
+  - Claude 3.5 Haiku (2024-10-22)
+  - Claude 3 Opus (2024-02-29)
+  - Claude 3 Sonnet (2024-02-29)
+  - Claude 3 Haiku (2024-03-07)
 
 #### New Backend Endpoints
 - `GET /api/stats/dashboard` - Aggregated dashboard statistics with workspace/session/run counts
