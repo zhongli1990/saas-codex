@@ -165,7 +165,7 @@ function GeneralSettings({
                 className="w-4 h-4 text-zinc-900"
               />
               <div>
-                <p className="text-sm font-medium text-zinc-900">Codex (OpenAI)</p>
+                <p className="text-sm font-medium text-zinc-900">OpenAI Agent</p>
                 <p className="text-xs text-zinc-500">OpenAI Codex SDK - agentic coding assistant</p>
               </div>
             </label>
@@ -266,14 +266,14 @@ function RunnerSettings({
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Codex Runner</label>
+            <label className="block text-sm font-medium text-zinc-700">OpenAI Agent</label>
             <p className="text-xs text-zinc-500 mt-0.5">OpenAI Codex SDK (agentic)</p>
             <select
               value={settings.runners.codexModel}
               onChange={(e) => updateRunner("codexModel", e.target.value)}
               className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
             >
-              <option value="codex-sdk">Codex SDK (Default)</option>
+              <option value="codex-sdk">OpenAI Codex SDK (Default)</option>
             </select>
             <p className="text-xs text-zinc-400 mt-1">Uses @openai/codex-sdk v0.84.0</p>
           </div>

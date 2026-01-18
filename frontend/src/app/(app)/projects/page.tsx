@@ -123,7 +123,7 @@ function WorkspaceCard({
             href={`/codex?workspace=${workspace.workspace_id}`}
             className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
           >
-            ⚡ Open in Codex
+            ⚡ Open in Agents
           </Link>
           <Link
             href={`/chat?workspace=${workspace.workspace_id}`}

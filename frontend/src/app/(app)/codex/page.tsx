@@ -565,8 +565,8 @@ function CodexPageContent() {
                   className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                   disabled={!!sessionId}
                 >
-                  <option value="codex">Codex (OpenAI)</option>
-                  <option value="claude">Claude (Anthropic)</option>
+                  <option value="codex">OpenAI Agent</option>
+                  <option value="claude">Claude Agent</option>
                 </select>
               </label>
               <button

@@ -214,7 +214,7 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="p-5 text-center text-sm text-zinc-500">
-                No recent activity. Start by running a prompt in Codex or Chat.
+                No recent activity. Start by running a prompt in Agents or Chat.
               </div>
             )}
           </div>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
               >
                 <span className="text-xl">⚡</span>
                 <div>
-                  <p className="text-sm font-medium text-zinc-900">Run Codex</p>
+                  <p className="text-sm font-medium text-zinc-900">Run Agent</p>
                   <p className="text-xs text-zinc-500">Execute AI prompts</p>
                 </div>
               </Link>
