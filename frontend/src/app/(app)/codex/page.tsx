@@ -134,6 +134,30 @@ export default function CodexPage() {
 
       const eventType = data.type || "";
 
+      // Handle Codex runner events
+      if (eventType === "item.completed" && data.item) {
+        const item = data.item;
+        if (item.type === "command_execution") {
+          messages.push({
+            role: "tool",
+            content: item.status === "completed" ? "Command executed" : "Command failed",
+            toolName: "shell",
+            toolInput: item.command,
+            toolOutput: item.aggregated_output || `Exit code: ${item.exit_code}`
+          });
+        } else if (item.type === "agent_message" || item.text) {
+          messages.push({ role: "assistant", content: item.text || "" });
+        }
+      } else if (eventType === "item.completed" && data.item?.type === "agent_message") {
+        messages.push({ role: "assistant", content: data.item.text || "" });
+      }
+
+      // Handle agent_message directly (for final responses)
+      if (eventType === "item.completed" && data.item?.type === "agent_message") {
+        // Already handled above
+      }
+
+      // Handle Claude runner events (ui.* format)
       if (eventType === "ui.message.user") {
         messages.push({ role: "user", content: data.payload?.text || "" });
       } else if (eventType === "ui.message.assistant.delta") {
