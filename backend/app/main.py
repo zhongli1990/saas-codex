@@ -1001,3 +1001,116 @@ async def create_message(
         metadata=message.metadata_json,
         created_at=_format_datetime(message.created_at)
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dashboard Stats API
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DashboardStatsResponse(BaseModel):
+    workspaces_count: int
+    sessions_count: int
+    runs_today: int
+    runs_total: int
+    recent_activity: list[dict]
+
+
+class ServiceHealthResponse(BaseModel):
+    service: str
+    status: str
+    latency_ms: Optional[int]
+
+
+class SystemHealthResponse(BaseModel):
+    services: list[ServiceHealthResponse]
+
+
+@app.get("/api/stats/dashboard", response_model=DashboardStatsResponse)
+async def get_dashboard_stats(db: AsyncSession = Depends(get_db)) -> DashboardStatsResponse:
+    """Get aggregated dashboard statistics."""
+    from sqlalchemy import select, func
+    from .models import Workspace, Session, Run
+    
+    # Count workspaces (only those with existing folders)
+    workspaces_result = await db.execute(select(Workspace))
+    all_workspaces = workspaces_result.scalars().all()
+    workspaces_count = sum(1 for ws in all_workspaces if pathlib.Path(ws.local_path).exists())
+    
+    # Count sessions
+    sessions_result = await db.execute(select(func.count(Session.id)))
+    sessions_count = sessions_result.scalar() or 0
+    
+    # Count runs today
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    runs_today_result = await db.execute(
+        select(func.count(Run.id)).where(Run.created_at >= today_start)
+    )
+    runs_today = runs_today_result.scalar() or 0
+    
+    # Count total runs
+    runs_total_result = await db.execute(select(func.count(Run.id)))
+    runs_total = runs_total_result.scalar() or 0
+    
+    # Recent activity (last 10 runs)
+    recent_runs_result = await db.execute(
+        select(Run, Session, Workspace)
+        .join(Session, Run.session_id == Session.id)
+        .join(Workspace, Session.workspace_id == Workspace.id)
+        .order_by(Run.created_at.desc())
+        .limit(10)
+    )
+    recent_activity = []
+    for run, session, workspace in recent_runs_result.all():
+        recent_activity.append({
+            "type": "run",
+            "status": run.status,
+            "workspace_name": workspace.display_name,
+            "runner_type": session.runner_type,
+            "prompt_preview": run.prompt[:50] + "..." if len(run.prompt) > 50 else run.prompt,
+            "created_at": _format_datetime(run.created_at)
+        })
+    
+    return DashboardStatsResponse(
+        workspaces_count=workspaces_count,
+        sessions_count=sessions_count,
+        runs_today=runs_today,
+        runs_total=runs_total,
+        recent_activity=recent_activity
+    )
+
+
+@app.get("/api/health/services", response_model=SystemHealthResponse)
+async def get_system_health(db: AsyncSession = Depends(get_db)) -> SystemHealthResponse:
+    """Check health of all backend services."""
+    services = []
+    
+    async def check_service(name: str, url: str) -> ServiceHealthResponse:
+        try:
+            start = datetime.now()
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(f"{url}/health")
+                latency = int((datetime.now() - start).total_seconds() * 1000)
+                if r.status_code == 200:
+                    return ServiceHealthResponse(service=name, status="healthy", latency_ms=latency)
+                else:
+                    return ServiceHealthResponse(service=name, status="unhealthy", latency_ms=latency)
+        except Exception:
+            return ServiceHealthResponse(service=name, status="unreachable", latency_ms=None)
+    
+    # Check all services
+    checks = await asyncio.gather(
+        check_service("codex_runner", RUNNER_CODEX_URL),
+        check_service("claude_runner", RUNNER_CLAUDE_URL),
+    )
+    services.append(ServiceHealthResponse(service="backend", status="healthy", latency_ms=1))
+    services.extend(checks)
+    
+    # Check database
+    try:
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
+        services.append(ServiceHealthResponse(service="database", status="healthy", latency_ms=1))
+    except Exception:
+        services.append(ServiceHealthResponse(service="database", status="unhealthy", latency_ms=None))
+    
+    return SystemHealthResponse(services=services)
