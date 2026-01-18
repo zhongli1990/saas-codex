@@ -13,6 +13,10 @@ COPY src /app/src
 
 RUN npm run build
 
+# Copy static assets for standalone mode
+RUN cp -r .next/static .next/standalone/.next/static
+RUN mkdir -p .next/standalone/public
+
 EXPOSE 3000
 
 CMD ["node", ".next/standalone/server.js"]

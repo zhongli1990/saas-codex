@@ -27,10 +27,94 @@ RUNNER_CODEX_URL = os.environ.get("RUNNER_CODEX_URL", "http://runner:8081")
 RUNNER_CLAUDE_URL = os.environ.get("RUNNER_CLAUDE_URL", "http://claude-runner:8082")
 
 
+def _derive_display_name(source_type: str, source_uri: str) -> str:
+    if source_type == "github":
+        match = re.search(r"github\.com[/:]([^/]+)/([^/.]+)", source_uri)
+        if match:
+            return f"{match.group(1)}/{match.group(2)}"
+        return source_uri.split("/")[-1].replace(".git", "")
+    else:
+        return pathlib.Path(source_uri).name
+
+
+async def scan_and_import_existing_workspaces():
+    """Scan the workspaces directory and import any existing workspaces into the database."""
+    workspaces_path = pathlib.Path(WORKSPACES_ROOT)
+    if not workspaces_path.exists():
+        return
+    
+    async with async_session_maker() as db:
+        repo = WorkspaceRepository(db)
+        
+        for workspace_dir in workspaces_path.iterdir():
+            if not workspace_dir.is_dir():
+                continue
+            
+            repo_path = workspace_dir / "repo"
+            if not repo_path.exists():
+                continue
+            
+            # Try to get git remote URL
+            try:
+                result = subprocess.run(
+                    ["git", "remote", "get-url", "origin"],
+                    cwd=str(repo_path),
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    source_uri = result.stdout.strip()
+                    source_type = "github" if "github.com" in source_uri else "local"
+                else:
+                    source_uri = str(repo_path)
+                    source_type = "local"
+            except Exception:
+                source_uri = str(repo_path)
+                source_type = "local"
+            
+            # Check if already exists
+            existing = await repo.get_by_source(source_type, source_uri)
+            if existing:
+                continue
+            
+            # Also check by local path to avoid duplicates
+            existing_by_path = await repo.get_by_id(uuid.UUID(workspace_dir.name)) if _is_valid_uuid(workspace_dir.name) else None
+            if existing_by_path:
+                continue
+            
+            # Derive display name
+            display_name = _derive_display_name(source_type, source_uri)
+            
+            # Create workspace entry
+            try:
+                workspace_id = uuid.UUID(workspace_dir.name) if _is_valid_uuid(workspace_dir.name) else uuid.uuid4()
+                await repo.create(
+                    source_type=source_type,
+                    source_uri=source_uri,
+                    display_name=display_name,
+                    local_path=str(repo_path)
+                )
+                print(f"Imported existing workspace: {display_name} ({source_uri})")
+            except Exception as e:
+                print(f"Failed to import workspace {workspace_dir.name}: {e}")
+
+
+def _is_valid_uuid(val: str) -> bool:
+    try:
+        uuid.UUID(val)
+        return True
+    except ValueError:
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Scan and import existing workspaces
+    await scan_and_import_existing_workspaces()
+    
     yield
 
 
@@ -151,16 +235,6 @@ def _ensure_under_workspaces_root(path_str: str) -> str:
     if not str(path).startswith(str(root)):
         raise HTTPException(status_code=400, detail="invalid workspace path")
     return str(path)
-
-
-def _derive_display_name(source_type: str, source_uri: str) -> str:
-    if source_type == "github":
-        match = re.search(r"github\.com[/:]([^/]+)/([^/.]+)", source_uri)
-        if match:
-            return f"{match.group(1)}/{match.group(2)}"
-        return source_uri.split("/")[-1].replace(".git", "")
-    else:
-        return pathlib.Path(source_uri).name
 
 
 def _format_datetime(dt: datetime) -> str:

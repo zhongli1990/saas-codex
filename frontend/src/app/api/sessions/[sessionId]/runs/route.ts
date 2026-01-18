@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 const BACKEND_URL = process.env.BACKEND_URL || "http://backend:8080";
 
 export async function GET(
