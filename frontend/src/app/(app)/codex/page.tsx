@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -19,7 +19,39 @@ type TranscriptMessage = {
   toolOutput?: any;
 };
 
+type Workspace = {
+  workspace_id: string;
+  display_name: string;
+  source_type: string;
+  source_uri: string;
+  local_path: string;
+  created_at: string;
+};
+
+type Session = {
+  session_id: string;
+  workspace_id: string;
+  runner_type: RunnerType;
+  thread_id: string;
+  created_at: string;
+  run_count: number;
+};
+
+type Run = {
+  run_id: string;
+  session_id: string;
+  prompt: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+};
+
 export default function CodexPage() {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [showImportForm, setShowImportForm] = useState(false);
   const [repoUrl, setRepoUrl] = useState("");
   const [runnerType, setRunnerType] = useState<RunnerType>("codex");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -29,6 +61,62 @@ export default function CodexPage() {
   const [status, setStatus] = useState<string>("idle");
   const [viewMode, setViewMode] = useState<"transcript" | "raw">("transcript");
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  const fetchWorkspaces = useCallback(async () => {
+    try {
+      const r = await fetch("/api/workspaces");
+      if (r.ok) {
+        const data = await r.json();
+        setWorkspaces(data.items || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch workspaces:", e);
+    }
+  }, []);
+
+  const fetchSessions = useCallback(async (workspaceId: string) => {
+    try {
+      const r = await fetch(`/api/workspaces/${workspaceId}/sessions`);
+      if (r.ok) {
+        const data = await r.json();
+        setSessions(data.items || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch sessions:", e);
+    }
+  }, []);
+
+  const fetchRuns = useCallback(async (sessionId: string) => {
+    try {
+      const r = await fetch(`/api/sessions/${sessionId}/runs`);
+      if (r.ok) {
+        const data = await r.json();
+        setRuns(data.items || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch runs:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  useEffect(() => {
+    if (selectedWorkspaceId) {
+      fetchSessions(selectedWorkspaceId);
+    } else {
+      setSessions([]);
+    }
+  }, [selectedWorkspaceId, fetchSessions]);
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchRuns(sessionId);
+    } else {
+      setRuns([]);
+    }
+  }, [sessionId, fetchRuns]);
 
   const eventsText = useMemo(() => {
     return events
@@ -81,7 +169,31 @@ export default function CodexPage() {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
+  async function onImportWorkspace() {
+    if (!repoUrl) return;
+    setStatus("importing");
+
+    const r = await fetch("/api/workspaces/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source_type: "github", source_uri: repoUrl })
+    });
+
+    if (!r.ok) {
+      setStatus(`error: ${await r.text()}`);
+      return;
+    }
+
+    const data = await r.json();
+    setSelectedWorkspaceId(data.workspace_id);
+    setShowImportForm(false);
+    setRepoUrl("");
+    setStatus("idle");
+    await fetchWorkspaces();
+  }
+
   async function onCreateSession() {
+    if (!selectedWorkspaceId) return;
     setStatus("creating-session");
     setEvents([]);
     setRunId(null);
@@ -89,7 +201,7 @@ export default function CodexPage() {
     const r = await fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repo_url: repoUrl, runner_type: runnerType })
+      body: JSON.stringify({ workspace_id: selectedWorkspaceId, runner_type: runnerType })
     });
 
     if (!r.ok) {
@@ -99,6 +211,17 @@ export default function CodexPage() {
 
     const data = await r.json();
     setSessionId(data.session_id);
+    setStatus("session-ready");
+    if (selectedWorkspaceId) {
+      await fetchSessions(selectedWorkspaceId);
+    }
+  }
+
+  async function onContinueSession(session: Session) {
+    setSessionId(session.session_id);
+    setRunnerType(session.runner_type);
+    setEvents([]);
+    setRunId(null);
     setStatus("session-ready");
   }
 
@@ -153,25 +276,101 @@ export default function CodexPage() {
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Agent Console</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Clone a repo, select a runner (Codex or Claude), and run prompts with streaming output.
+          Select a workspace, choose a runner, and run prompts with streaming output.
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4">
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="text-sm font-medium text-zinc-900">Workspace</div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-zinc-900">Workspace</div>
+              <button
+                onClick={() => setShowImportForm(!showImportForm)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                {showImportForm ? "Cancel" : "+ Import"}
+              </button>
+            </div>
             <div className="mt-3 space-y-3">
-              <label className="block">
-                <div className="text-xs font-medium text-zinc-700">GitHub Repo URL</div>
-                <input
-                  value={repoUrl}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setRepoUrl(e.target.value)}
-                  placeholder="https://github.com/org/repo.git"
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                />
-              </label>
+              {showImportForm ? (
+                <>
+                  <label className="block">
+                    <div className="text-xs font-medium text-zinc-700">GitHub Repo URL</div>
+                    <input
+                      value={repoUrl}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setRepoUrl(e.target.value)}
+                      placeholder="https://github.com/org/repo.git"
+                      className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <button
+                    onClick={onImportWorkspace}
+                    disabled={!repoUrl || status === "importing"}
+                    className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Import Workspace
+                  </button>
+                </>
+              ) : (
+                <select
+                  value={selectedWorkspaceId || ""}
+                  onChange={(e) => {
+                    setSelectedWorkspaceId(e.target.value || null);
+                    setSessionId(null);
+                    setEvents([]);
+                    setStatus("idle");
+                  }}
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Select a workspace...</option>
+                  {workspaces.map((ws) => (
+                    <option key={ws.workspace_id} value={ws.workspace_id}>
+                      {ws.display_name} ({ws.source_type})
+                    </option>
+                  ))}
+                </select>
+              )}
 
+              {selectedWorkspaceId && !showImportForm && (
+                <div className="pt-2 border-t border-zinc-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-medium text-zinc-700">Sessions</div>
+                    <span className="text-xs text-zinc-500">{sessions.length} total</span>
+                  </div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {sessions.length === 0 ? (
+                      <div className="text-xs text-zinc-500">No sessions yet</div>
+                    ) : (
+                      sessions.map((s) => (
+                        <button
+                          key={s.session_id}
+                          onClick={() => onContinueSession(s)}
+                          className={`w-full text-left px-2 py-1.5 rounded text-xs ${
+                            sessionId === s.session_id
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-zinc-50 hover:bg-zinc-100 text-zinc-700"
+                          }`}
+                        >
+                          <div className="flex justify-between">
+                            <span className="font-medium">{s.runner_type}</span>
+                            <span className="text-zinc-500">{s.run_count} runs</span>
+                          </div>
+                          <div className="text-zinc-500 truncate">
+                            {new Date(s.created_at).toLocaleDateString()}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-zinc-200 bg-white p-4">
+            <div className="text-sm font-medium text-zinc-900">New Session</div>
+            <div className="mt-3 space-y-3">
               <label className="block">
                 <div className="text-xs font-medium text-zinc-700">Runner</div>
                 <select
@@ -183,58 +382,81 @@ export default function CodexPage() {
                   <option value="codex">Codex (OpenAI)</option>
                   <option value="claude">Claude (Anthropic)</option>
                 </select>
-                {sessionId && (
-                  <div className="mt-1 text-xs text-zinc-500">
-                    Runner is fixed for this session. Create a new session to change.
-                  </div>
-                )}
               </label>
-
               <button
                 onClick={onCreateSession}
-                disabled={!repoUrl || status === "creating-session"}
-                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                disabled={!selectedWorkspaceId || status === "creating-session"}
+                className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 Create Session
               </button>
-
-              <div className="flex items-center gap-4 text-xs text-zinc-600">
-                <span>Session: {sessionId ? sessionId.slice(0, 8) + "..." : "-"}</span>
-                <span className={`px-2 py-0.5 rounded ${
-                  status === "running" ? "bg-blue-100 text-blue-700" :
-                  status === "completed" ? "bg-green-100 text-green-700" :
-                  status.startsWith("error") ? "bg-red-100 text-red-700" :
-                  "bg-zinc-100 text-zinc-600"
-                }`}>
-                  {status}
-                </span>
-              </div>
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="text-sm font-medium text-zinc-900">Prompt</div>
-            <div className="mt-3 space-y-3">
-              <label className="block">
-                <div className="text-xs font-medium text-zinc-700">Instruction</div>
-                <textarea
-                  value={prompt}
-                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
-                  placeholder="Diagnose failing tests and propose a fix"
-                  className="mt-1 min-h-32 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                />
-              </label>
-              <button
-                onClick={onRunPrompt}
-                disabled={!sessionId || !prompt || status === "running"}
-                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-              >
-                Run Prompt
-              </button>
-              {runId && (
-                <div className="text-xs text-zinc-600">Run: {runId.slice(0, 8)}...</div>
+          {sessionId && runs.length > 0 && (
+            <div className="rounded-lg border border-zinc-200 bg-white p-4">
+              <div className="text-sm font-medium text-zinc-900">Run History</div>
+              <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                {runs.map((r) => (
+                  <div
+                    key={r.run_id}
+                    className="px-2 py-1.5 rounded text-xs bg-zinc-50"
+                  >
+                    <div className="flex justify-between">
+                      <span className={`font-medium ${
+                        r.status === "completed" ? "text-green-700" :
+                        r.status === "error" ? "text-red-700" :
+                        "text-blue-700"
+                      }`}>
+                        {r.status}
+                      </span>
+                      <span className="text-zinc-500">
+                        {new Date(r.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="text-zinc-600 truncate">{r.prompt}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          <div className="text-sm font-medium text-zinc-900">Prompt</div>
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`px-2 py-0.5 rounded ${
+                status === "running" ? "bg-blue-100 text-blue-700" :
+                status === "completed" ? "bg-green-100 text-green-700" :
+                status.startsWith("error") ? "bg-red-100 text-red-700" :
+                sessionId ? "bg-green-100 text-green-700" :
+                "bg-zinc-100 text-zinc-600"
+              }`}>
+                {sessionId ? (status === "idle" ? "ready" : status) : "no session"}
+              </span>
+              {sessionId && (
+                <span className="text-zinc-500">
+                  {runnerType} • {sessionId.slice(0, 8)}...
+                </span>
               )}
             </div>
+            <label className="block">
+              <div className="text-xs font-medium text-zinc-700">Instruction</div>
+              <textarea
+                value={prompt}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
+                placeholder="Diagnose failing tests and propose a fix"
+                className="mt-1 min-h-40 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              onClick={onRunPrompt}
+              disabled={!sessionId || !prompt || status === "running"}
+              className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              Run Prompt
+            </button>
           </div>
         </div>
 
