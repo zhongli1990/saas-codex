@@ -9,9 +9,14 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.2.2 (dev/v0.2.0 branch)
+## Current Release: v0.2.3 (dev/v0.2.0 branch)
 
-### v0.2.2 (Latest - Jan 18, 2026)
+### v0.2.3 (Latest - Jan 18, 2026)
+- **Real-time workspace sync**: Dropdown reflects actual filesystem state
+- **Cache bypass**: All API routes use `cache: no-store` for fresh data
+- **Orphan handling**: Workspaces with deleted folders automatically hidden
+
+### v0.2.2 (Jan 18, 2026)
 - **Local folder scan**: Discover unregistered folders in `/workspaces`
 - **Local folder import**: Register manually copied folders with custom names
 - **Scan UI**: Modal to view discovered folders with git info and bulk import
@@ -141,7 +146,8 @@ alembic upgrade head
 
 ## Status
 
-- **v0.2.2 (current)**: Local folder scan/import, database integration complete
+- **v0.2.3 (current)**: Real-time workspace sync, cache bypass, orphan handling
+- **v0.2.2**: Local folder scan/import, database integration complete
 - **v0.2.1**: Transcript parsing fix, CSS fix, workspace auto-import
 - **v0.2.0**: Multi-runner, workspace registry, session management, transcript UI
 - **Roadmap**: v0.3.0 (authentication, RBAC, clinical workflows), v0.4.0 (multi-agent, lifecycle automation)
