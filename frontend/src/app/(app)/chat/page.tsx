@@ -1,30 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useAppContext } from "@/contexts/AppContext";
 
 type RunnerType = "codex" | "claude";
-
-type Workspace = {
-  workspace_id: string;
-  display_name: string;
-  source_type: string;
-  source_uri: string;
-  local_path: string;
-  created_at: string;
-};
-
-type Session = {
-  session_id: string;
-  workspace_id: string;
-  runner_type: RunnerType;
-  thread_id: string;
-  created_at: string;
-  run_count: number;
-};
 
 type ChatMessage = {
   message_id: string;
@@ -41,57 +25,52 @@ type ChatMessage = {
   isStreaming?: boolean;
 };
 
-export default function ChatPage() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [runnerType, setRunnerType] = useState<RunnerType>("codex");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+function ChatPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const {
+    workspaces,
+    selectedWorkspaceId,
+    setSelectedWorkspaceId,
+    sessions,
+    sessionId,
+    setSessionId,
+    runnerType,
+    setRunnerType,
+    chatMessages: messages,
+    setChatMessages: setMessages,
+    chatStatus: status,
+    setChatStatus: setStatus,
+    fetchWorkspaces,
+    fetchSessions,
+    fetchMessages,
+  } = useAppContext();
+  
   const [inputValue, setInputValue] = useState("");
-  const [status, setStatus] = useState<string>("idle");
   const [streamingContent, setStreamingContent] = useState("");
+  const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Fetch workspaces
-  const fetchWorkspaces = useCallback(async () => {
-    try {
-      const r = await fetch("/api/workspaces");
-      if (r.ok) {
-        const data = await r.json();
-        setWorkspaces(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch workspaces:", e);
-    }
-  }, []);
+  // Initialize from URL params (only on first load)
+  useEffect(() => {
+    const wsParam = searchParams.get("workspace");
+    const sessParam = searchParams.get("session");
+    if (wsParam && !selectedWorkspaceId) setSelectedWorkspaceId(wsParam);
+    if (sessParam && !sessionId) setSessionId(sessParam);
+    setInitialized(true);
+  }, [searchParams, selectedWorkspaceId, sessionId, setSelectedWorkspaceId, setSessionId]);
 
-  // Fetch sessions for selected workspace
-  const fetchSessions = useCallback(async (workspaceId: string) => {
-    try {
-      const r = await fetch(`/api/workspaces/${workspaceId}/sessions`);
-      if (r.ok) {
-        const data = await r.json();
-        setSessions(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch sessions:", e);
-    }
-  }, []);
-
-  // Fetch messages for selected session
-  const fetchMessages = useCallback(async (sid: string) => {
-    try {
-      const r = await fetch(`/api/sessions/${sid}/messages`);
-      if (r.ok) {
-        const data = await r.json();
-        setMessages(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch messages:", e);
-    }
-  }, []);
+  // Update URL when workspace/session changes
+  useEffect(() => {
+    if (!initialized) return;
+    const params = new URLSearchParams();
+    if (selectedWorkspaceId) params.set("workspace", selectedWorkspaceId);
+    if (sessionId) params.set("session", sessionId);
+    const newUrl = params.toString() ? `?${params.toString()}` : "/chat";
+    router.replace(newUrl, { scroll: false });
+  }, [selectedWorkspaceId, sessionId, initialized, router]);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -208,26 +187,37 @@ export default function ChatPage() {
             const eventType = event.type;
 
             // Handle different event types
-            if (eventType === "response.output_text.delta" || eventType === "message.delta") {
-              const delta = event.delta?.text || event.delta?.content || "";
-              assistantContent += delta;
-              setStreamingContent(assistantContent);
-            } else if (eventType === "content_block_delta" && event.delta?.type === "text_delta") {
-              assistantContent += event.delta.text || "";
-              setStreamingContent(assistantContent);
-            } else if (eventType === "message" && event.role === "assistant") {
-              assistantContent = event.content || assistantContent;
-              setStreamingContent(assistantContent);
-            } else if (eventType === "response.output_item.done") {
+            // === CODEX RUNNER EVENTS ===
+            if (eventType === "item.completed" && event.item) {
               const item = event.item;
-              if (item?.type === "message" && item?.content?.[0]?.text) {
-                assistantContent = item.content[0].text;
+              // Codex agent_message (final assistant response)
+              if (item.type === "agent_message" && item.text) {
+                assistantContent = item.text;
+                setStreamingContent(assistantContent);
               }
-            } else if (eventType === "item.completed") {
-              const item = event.item;
-              if (item?.type === "message" && item?.content?.[0]?.text) {
+              // Codex command_execution (tool call)
+              else if (item.type === "command_execution") {
+                toolMessages.push({
+                  message_id: `tool-${Date.now()}-${Math.random()}`,
+                  session_id: sessionId,
+                  run_id: run_id,
+                  role: "tool",
+                  content: "",
+                  metadata: {
+                    tool_name: "shell",
+                    tool_input: item.command,
+                    tool_output: item.aggregated_output || `Exit code: ${item.exit_code}`
+                  },
+                  created_at: new Date().toISOString()
+                });
+              }
+              // Generic message type
+              else if (item.type === "message" && item.content?.[0]?.text) {
                 assistantContent = item.content[0].text;
-              } else if (item?.type === "function_call_output" || item?.type === "tool_result") {
+                setStreamingContent(assistantContent);
+              }
+              // Function call output
+              else if (item.type === "function_call_output" || item.type === "tool_result") {
                 toolMessages.push({
                   message_id: `tool-${Date.now()}-${Math.random()}`,
                   session_id: sessionId,
@@ -241,7 +231,60 @@ export default function ChatPage() {
                   created_at: new Date().toISOString()
                 });
               }
-            } else if (eventType === "command_execution") {
+            }
+            // === CLAUDE RUNNER EVENTS (ui.* format) ===
+            else if (eventType === "ui.message.assistant.delta") {
+              assistantContent += event.payload?.textDelta || "";
+              setStreamingContent(assistantContent);
+            }
+            else if (eventType === "ui.message.assistant.final") {
+              assistantContent = event.payload?.text || assistantContent;
+              setStreamingContent(assistantContent);
+            }
+            else if (eventType === "ui.tool.call") {
+              toolMessages.push({
+                message_id: `tool-${Date.now()}-${Math.random()}`,
+                session_id: sessionId,
+                run_id: run_id,
+                role: "tool",
+                content: "",
+                metadata: {
+                  tool_name: event.payload?.toolName || "tool",
+                  tool_input: event.payload?.input
+                },
+                created_at: new Date().toISOString()
+              });
+            }
+            else if (eventType === "ui.tool.result") {
+              if (toolMessages.length > 0) {
+                const lastTool = toolMessages[toolMessages.length - 1];
+                if (lastTool.metadata) {
+                  lastTool.metadata.tool_output = event.payload?.output;
+                }
+              }
+            }
+            // === GENERIC STREAMING EVENTS ===
+            else if (eventType === "response.output_text.delta" || eventType === "message.delta") {
+              const delta = event.delta?.text || event.delta?.content || "";
+              assistantContent += delta;
+              setStreamingContent(assistantContent);
+            }
+            else if (eventType === "content_block_delta" && event.delta?.type === "text_delta") {
+              assistantContent += event.delta.text || "";
+              setStreamingContent(assistantContent);
+            }
+            else if (eventType === "message" && event.role === "assistant") {
+              assistantContent = event.content || assistantContent;
+              setStreamingContent(assistantContent);
+            }
+            else if (eventType === "response.output_item.done") {
+              const item = event.item;
+              if (item?.type === "message" && item?.content?.[0]?.text) {
+                assistantContent = item.content[0].text;
+              }
+            }
+            // === STANDALONE TOOL EVENTS ===
+            else if (eventType === "command_execution") {
               toolMessages.push({
                 message_id: `tool-${Date.now()}-${Math.random()}`,
                 session_id: sessionId,
@@ -255,7 +298,8 @@ export default function ChatPage() {
                 },
                 created_at: new Date().toISOString()
               });
-            } else if (eventType === "tool_use" || eventType === "tool_call") {
+            }
+            else if (eventType === "tool_use" || eventType === "tool_call") {
               toolMessages.push({
                 message_id: `tool-${Date.now()}-${Math.random()}`,
                 session_id: sessionId,
@@ -268,7 +312,8 @@ export default function ChatPage() {
                 },
                 created_at: new Date().toISOString()
               });
-            } else if (eventType === "tool_result") {
+            }
+            else if (eventType === "tool_result") {
               if (toolMessages.length > 0) {
                 const lastTool = toolMessages[toolMessages.length - 1];
                 if (lastTool.metadata) {
@@ -648,5 +693,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="text-zinc-500">Loading...</div></div>}>
+      <ChatPageContent />
+    </Suspense>
   );
 }

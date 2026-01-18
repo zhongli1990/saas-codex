@@ -677,6 +677,7 @@ async def prompt(
 ) -> PromptResponse:
     session_repo = SessionRepository(db)
     run_repo = RunRepository(db)
+    ws_repo = WorkspaceRepository(db)
     
     session = await session_repo.get_by_id(uuid.UUID(session_id))
     if not session:
@@ -684,12 +685,43 @@ async def prompt(
 
     runner_type = session.runner_type
     runner_url = _get_runner_url(runner_type)
+    thread_id = session.runner_thread_id
 
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post(
             f"{runner_url}/runs",
-            json={"threadId": session.runner_thread_id, "prompt": req.prompt},
+            json={"threadId": thread_id, "prompt": req.prompt},
         )
+        
+        # If thread not found (404), try to recreate it
+        if r.status_code == 404 and "thread not found" in r.text.lower():
+            # Get workspace path for thread recreation
+            workspace = await ws_repo.get_by_id(session.workspace_id) if session.workspace_id else None
+            if not workspace:
+                raise HTTPException(status_code=502, detail="Session thread expired and workspace not found for recovery")
+            
+            # Recreate thread
+            thread_r = await client.post(
+                f"{runner_url}/threads",
+                json={"workingDirectory": workspace.local_path, "skipGitRepoCheck": False},
+            )
+            if thread_r.status_code >= 400:
+                raise HTTPException(status_code=502, detail=f"Failed to recreate thread: {thread_r.text}")
+            
+            new_thread_id = thread_r.json().get("threadId")
+            if not new_thread_id:
+                raise HTTPException(status_code=502, detail="Runner did not return threadId on recovery")
+            
+            # Update session with new thread ID
+            await session_repo.update_thread_id(session.id, new_thread_id)
+            thread_id = new_thread_id
+            
+            # Retry the run with new thread
+            r = await client.post(
+                f"{runner_url}/runs",
+                json={"threadId": thread_id, "prompt": req.prompt},
+            )
+        
         if r.status_code >= 400:
             raise HTTPException(status_code=502, detail=f"runner error: {r.text}")
         data = r.json()
