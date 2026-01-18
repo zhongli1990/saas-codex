@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import engine, async_session_maker, Base
-from .repositories import WorkspaceRepository, SessionRepository, RunRepository
+from .repositories import WorkspaceRepository, SessionRepository, RunRepository, MessageRepository
 
 
 WORKSPACES_ROOT = os.environ.get("WORKSPACES_ROOT", "/workspaces")
@@ -227,6 +227,27 @@ class TranscriptMessage(BaseModel):
 class TranscriptResponse(BaseModel):
     run_id: str
     messages: list[TranscriptMessage]
+
+
+class MessageResponse(BaseModel):
+    message_id: str
+    session_id: str
+    run_id: Optional[str] = None
+    role: str
+    content: str
+    metadata: Optional[dict] = None
+    created_at: str
+
+
+class MessageListResponse(BaseModel):
+    items: list[MessageResponse]
+
+
+class CreateMessageRequest(BaseModel):
+    role: str
+    content: str
+    run_id: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
@@ -846,4 +867,73 @@ async def run_events(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Messages API (Chat Persistence)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _format_datetime(dt: datetime) -> str:
+    return dt.isoformat() if dt else None
+
+
+@app.get("/api/sessions/{session_id}/messages", response_model=MessageListResponse)
+async def list_messages(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> MessageListResponse:
+    """Get all messages for a session (chat history)."""
+    session_repo = SessionRepository(db)
+    session = await session_repo.get_by_id(uuid.UUID(session_id))
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    message_repo = MessageRepository(db)
+    messages = await message_repo.list_by_session(uuid.UUID(session_id))
+    
+    items = [
+        MessageResponse(
+            message_id=str(msg.id),
+            session_id=str(msg.session_id),
+            run_id=str(msg.run_id) if msg.run_id else None,
+            role=msg.role,
+            content=msg.content,
+            metadata=msg.metadata_json,
+            created_at=_format_datetime(msg.created_at)
+        )
+        for msg in messages
+    ]
+    return MessageListResponse(items=items)
+
+
+@app.post("/api/sessions/{session_id}/messages", response_model=MessageResponse)
+async def create_message(
+    session_id: str,
+    req: CreateMessageRequest,
+    db: AsyncSession = Depends(get_db)
+) -> MessageResponse:
+    """Create a new message in a session (for chat persistence)."""
+    session_repo = SessionRepository(db)
+    session = await session_repo.get_by_id(uuid.UUID(session_id))
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    message_repo = MessageRepository(db)
+    message = await message_repo.create(
+        session_id=uuid.UUID(session_id),
+        role=req.role,
+        content=req.content,
+        run_id=uuid.UUID(req.run_id) if req.run_id else None,
+        metadata_json=req.metadata
+    )
+    
+    return MessageResponse(
+        message_id=str(message.id),
+        session_id=str(message.session_id),
+        run_id=str(message.run_id) if message.run_id else None,
+        role=message.role,
+        content=message.content,
+        metadata=message.metadata_json,
+        created_at=_format_datetime(message.created_at)
     )

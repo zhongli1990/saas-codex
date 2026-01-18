@@ -112,6 +112,41 @@ Acceptance criteria:
   - Raw events panel (JSON/event stream)
 - Responses render Markdown correctly (code blocks, lists).
 
+### FR-4.1 Enterprise Chat UI (v0.2.4)
+
+A dedicated `/chat` page provides a ChatGPT/Claude-style conversational interface:
+
+**User Experience**:
+- Full-height chat layout with messages scrolling vertically
+- User messages appear on right (blue), assistant on left (white)
+- Real-time streaming with typing indicator
+- Tool calls displayed as collapsible cards with input/output
+- Syntax-highlighted code blocks (Prism)
+- Enter to send, Shift+Enter for new line
+
+**Conversation Persistence**:
+- All messages (user, assistant, tool, system) persisted to database
+- Chat history loads when selecting an existing session
+- Messages linked to runs for traceability
+
+**Multi-Session Support**:
+- Left sidebar shows workspace selector and session list
+- Create new sessions with runner type selection
+- Switch between sessions to view different conversations
+- Session indicator shows runner type (Codex/Claude)
+
+Acceptance criteria:
+- [x] `/chat` page accessible from sidebar navigation
+- [x] Workspace dropdown with real-time sync
+- [x] Session list with create/select functionality
+- [x] ChatGPT-style message bubbles with MD rendering
+- [x] Syntax highlighting for code blocks
+- [x] Tool call cards with collapsible details
+- [x] Message persistence to `messages` table
+- [x] History loading on session select
+- [x] Real-time streaming with cursor indicator
+- [x] Error handling with system messages
+
 ### FR-5 Persisted runs and transcripts (minimal persistence)
 
 - Runs must be persisted so transcripts can be revisited.
@@ -188,6 +223,7 @@ Acceptance criteria:
 - `sessions`
 - `runs`
 - `run_events` (or JSONL transcript blob)
+- `messages` (v0.2.4 - chat conversation persistence)
 
 ## 9. Delivery plan (implementation sequence)
 
@@ -197,3 +233,4 @@ Acceptance criteria:
 - Phase 3: Frontend UI uplift (workspace import + dropdown + runner selection)
 - Phase 4: Chat transcript UI + raw logs view + run reload
 - Phase 5: Add microservices placeholders and minimal integration
+- Phase 6: Enterprise Chat UI with message persistence (v0.2.4)

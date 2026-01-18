@@ -9,9 +9,16 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.2.3 (dev/v0.2.0 branch)
+## Current Release: v0.2.4 (dev/v0.2.0 branch)
 
-### v0.2.3 (Latest - Jan 18, 2026)
+### v0.2.4 (Latest - Jan 18, 2026)
+- **Enterprise Chat UI**: Dedicated `/chat` page with ChatGPT/Claude-style interface
+- **Message persistence**: All conversations saved to database with history loading
+- **Syntax highlighting**: Prism code blocks with dark theme
+- **Tool call cards**: Collapsible cards showing tool input/output
+- **Real-time streaming**: Typing indicator during AI response
+
+### v0.2.3 (Jan 18, 2026)
 - **Real-time workspace sync**: Dropdown reflects actual filesystem state
 - **Cache bypass**: All API routes use `cache: no-store` for fresh data
 - **Orphan handling**: Workspaces with deleted folders automatically hidden
@@ -146,7 +153,8 @@ alembic upgrade head
 
 ## Status
 
-- **v0.2.3 (current)**: Real-time workspace sync, cache bypass, orphan handling
+- **v0.2.4 (current)**: Enterprise Chat UI, message persistence, syntax highlighting
+- **v0.2.3**: Real-time workspace sync, cache bypass, orphan handling
 - **v0.2.2**: Local folder scan/import, database integration complete
 - **v0.2.1**: Transcript parsing fix, CSS fix, workspace auto-import
 - **v0.2.0**: Multi-runner, workspace registry, session management, transcript UI

@@ -93,3 +93,20 @@ class RunEvent(Base):
         UniqueConstraint("run_id", "seq", name="uq_run_event_seq"),
         Index("ix_run_event_run_seq", "run_id", "seq"),
     )
+
+
+class Message(Base):
+    """Chat messages for conversation persistence."""
+    __tablename__ = "messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False)
+    run_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), nullable=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # user, assistant, tool, system
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # tool_name, tool_input, tool_output
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (
+        Index("ix_message_session_created", "session_id", "created_at"),
+    )
