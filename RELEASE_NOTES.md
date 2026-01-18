@@ -82,9 +82,11 @@ This major release implements a complete user authentication system with admin a
 | `ADMIN_EMAIL` | admin@saas-codex.com | Initial admin email |
 | `ADMIN_PASSWORD` | Admin123! | Initial admin password |
 
-#### Branch
-- Development branch: `user-management`
-- Ready for merge to `main` after testing
+#### Release Info
+- **Tag**: `v0.4.0`
+- **Branch**: Merged `user-management` → `main`
+- **Commit**: `41e7725`
+- **Date**: Jan 18, 2026
 
 ---
 
