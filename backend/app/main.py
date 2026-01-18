@@ -457,6 +457,7 @@ async def import_local_workspace(
 async def list_workspaces(db: AsyncSession = Depends(get_db)) -> WorkspaceListResponse:
     repo = WorkspaceRepository(db)
     workspaces = await repo.list_all()
+    # Filter to only include workspaces whose folders still exist on disk
     items = [
         WorkspaceResponse(
             workspace_id=str(ws.id),
@@ -467,6 +468,7 @@ async def list_workspaces(db: AsyncSession = Depends(get_db)) -> WorkspaceListRe
             created_at=_format_datetime(ws.created_at)
         )
         for ws in workspaces
+        if pathlib.Path(ws.local_path).exists()
     ]
     return WorkspaceListResponse(items=items)
 
