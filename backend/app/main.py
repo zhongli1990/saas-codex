@@ -17,8 +17,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .database import engine, async_session_maker, Base
+from sqlalchemy import select
+
+from .database import engine, async_session_maker, Base, get_db
 from .repositories import WorkspaceRepository, SessionRepository, RunRepository, MessageRepository
+from .models import User
+from .auth.router import router as auth_router
+from .auth.security import get_password_hash
+from .admin.router import router as admin_router
 
 
 WORKSPACES_ROOT = os.environ.get("WORKSPACES_ROOT", "/workspaces")
@@ -107,10 +113,35 @@ def _is_valid_uuid(val: str) -> bool:
         return False
 
 
+async def create_initial_admin():
+    """Create initial admin user if none exists."""
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@saas-codex.com")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
+    
+    async with async_session_maker() as db:
+        result = await db.execute(select(User).where(User.email == admin_email))
+        existing = result.scalar_one_or_none()
+        
+        if existing is None:
+            admin = User(
+                email=admin_email,
+                password_hash=get_password_hash(admin_password),
+                display_name="Administrator",
+                status="active",
+                role="admin"
+            )
+            db.add(admin)
+            await db.commit()
+            print(f"Created initial admin user: {admin_email}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Create initial admin user
+    await create_initial_admin()
     
     # Scan and import existing workspaces
     await scan_and_import_existing_workspaces()
@@ -126,6 +157,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Include auth and admin routers
+app.include_router(auth_router)
+app.include_router(admin_router)
 
 
 RunnerType = Literal["codex", "claude"]
