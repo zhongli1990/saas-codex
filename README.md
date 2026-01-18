@@ -9,9 +9,18 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.3.0 (dev/v0.2.0 branch)
+## Current Release: v0.4.0 (user-management branch)
 
-### v0.3.0 (Latest - Jan 18, 2026)
+### v0.4.0 (Latest - Jan 18, 2026)
+- **User Authentication**: JWT-based login/register with bcrypt password hashing
+- **Admin Approval Workflow**: New users require admin approval before access
+- **Role-Based Access Control**: Admin and user roles with protected endpoints
+- **User Management Panel**: Admin UI to approve, reject, activate, deactivate users
+- **Initial Admin**: Auto-created on startup (admin@saas-codex.com / Admin123!)
+- **New Endpoints**: Auth (`/api/auth/*`) and Admin (`/api/admin/*`) APIs
+- **Sidebar Updates**: Admin section, user info display, logout button
+
+### v0.3.0 (Jan 18, 2026)
 - **Dashboard Uplift**: Real metrics, activity feed, quick actions, system health status, auto-refresh
 - **Projects Uplift**: Workspace cards with search, session expansion, quick navigation
 - **Settings Uplift**: Sidebar navigation, localStorage persistence, immediate theme switching
@@ -174,9 +183,13 @@ alembic upgrade head
 
 ## Status
 
-- **v0.2.4 (current)**: Enterprise Chat UI, message persistence, syntax highlighting
+- **v0.4.0 (current)**: User authentication, RBAC, admin approval workflow
+- **v0.3.0**: Enterprise UI uplift, dark mode, Agents rename, favicon
+- **v0.2.6**: Click-to-load run history
+- **v0.2.5**: Shared app context, sidebar fix, thread recovery
+- **v0.2.4**: Enterprise Chat UI, message persistence, syntax highlighting
 - **v0.2.3**: Real-time workspace sync, cache bypass, orphan handling
 - **v0.2.2**: Local folder scan/import, database integration complete
 - **v0.2.1**: Transcript parsing fix, CSS fix, workspace auto-import
 - **v0.2.0**: Multi-runner, workspace registry, session management, transcript UI
-- **Roadmap**: v0.3.0 (authentication, RBAC, clinical workflows), v0.4.0 (multi-agent, lifecycle automation)
+- **Roadmap**: v0.5.0 (multi-agent orchestration, clinical workflows)

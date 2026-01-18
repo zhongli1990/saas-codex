@@ -1,5 +1,93 @@
 # Release Notes
 
+## v0.4.0 (Jan 18, 2026)
+
+### User Authentication & Role-Based Access Control (RBAC)
+
+This major release implements a complete user authentication system with admin approval workflow and role-based access control, as documented in the v0.4.0 Auth & RBAC specifications.
+
+#### Authentication System
+- **JWT Authentication**: Secure token-based authentication with 24-hour expiration
+- **Password Security**: bcrypt hashing with 12 rounds, password validation rules
+- **Login/Register**: Full authentication flow with email/password
+- **Session Management**: Token stored in localStorage, auto-logout on expiry
+
+#### User Registration Workflow
+- **Self-Registration**: Users can register with email, password, optional display name and mobile
+- **Pending Approval**: New registrations default to "pending" status
+- **Admin Approval**: Admins can approve, reject, activate, or deactivate users
+- **Status Flow**: pending → active/rejected, active ↔ inactive
+
+#### Role-Based Access Control
+- **User Roles**: `admin` and `user` roles
+- **Admin Privileges**: User management, approval workflow
+- **Protected Routes**: Admin endpoints require admin role
+- **Initial Admin**: Auto-created on startup (admin@saas-codex.com / Admin123!)
+
+#### Backend Implementation
+- **User Model**: New `users` table with id, email, mobile, password_hash, display_name, status, role, timestamps
+- **Auth Module** (`backend/app/auth/`):
+  - `security.py` - JWT creation/validation, bcrypt password hashing
+  - `schemas.py` - Pydantic models for auth requests/responses
+  - `dependencies.py` - FastAPI dependencies (get_current_user, require_admin)
+  - `router.py` - Auth endpoints (login, register, me, logout)
+- **Admin Module** (`backend/app/admin/`):
+  - `router.py` - User management endpoints (list, approve, reject, activate, deactivate)
+- **Migration**: `002_add_users_table.py` - Alembic migration for users table
+
+#### Frontend Implementation
+- **Auth Library** (`frontend/src/lib/auth.ts`):
+  - Login, register, logout, getMe functions
+  - Token management (localStorage)
+- **Auth Context** (`frontend/src/contexts/AuthContext.tsx`):
+  - Global auth state management
+  - isAuthenticated, isAdmin, user state
+- **Auth Pages** (`frontend/src/app/(auth)/`):
+  - `/login` - Login form with error handling
+  - `/register` - Registration form with password validation
+  - `/pending` - Pending approval status page
+- **Admin Panel** (`frontend/src/app/(app)/admin/users/`):
+  - User list with status filter
+  - Approve/Reject/Activate/Deactivate actions
+  - Pending count badge
+- **Sidebar Updates**:
+  - Admin section with User Management link (admin only)
+  - User info display with email and logout button
+
+#### New API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/register` | POST | Register new user (pending status) |
+| `/api/auth/login` | POST | Login, returns JWT token |
+| `/api/auth/me` | GET | Get current user info |
+| `/api/auth/logout` | POST | Logout (client-side) |
+| `/api/admin/users` | GET | List all users (admin only) |
+| `/api/admin/users/pending` | GET | List pending users (admin only) |
+| `/api/admin/users/{id}` | GET | Get user by ID (admin only) |
+| `/api/admin/users/{id}/approve` | POST | Approve pending user (admin only) |
+| `/api/admin/users/{id}/reject` | POST | Reject pending user (admin only) |
+| `/api/admin/users/{id}/activate` | POST | Activate user (admin only) |
+| `/api/admin/users/{id}/deactivate` | POST | Deactivate user (admin only) |
+
+#### New Dependencies
+- `bcrypt==4.0.1` - Password hashing
+- `python-jose[cryptography]==3.3.0` - JWT tokens
+- `pydantic[email]==2.10.3` - Email validation
+
+#### Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET_KEY` | dev-secret-key-... | Secret key for JWT signing |
+| `JWT_EXPIRE_MINUTES` | 1440 (24h) | Token expiration time |
+| `ADMIN_EMAIL` | admin@saas-codex.com | Initial admin email |
+| `ADMIN_PASSWORD` | Admin123! | Initial admin password |
+
+#### Branch
+- Development branch: `user-management`
+- Ready for merge to `main` after testing
+
+---
+
 ## v0.3.0 (Jan 18, 2026)
 
 ### Enterprise UI Tab Uplift + Dark Mode + Agents Rename
