@@ -9,9 +9,20 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.2.0 (dev branch)
+## Current Release: v0.2.2 (dev/v0.2.0 branch)
 
-This release includes:
+### v0.2.2 (Latest - Jan 18, 2026)
+- **Local folder scan**: Discover unregistered folders in `/workspaces`
+- **Local folder import**: Register manually copied folders with custom names
+- **Scan UI**: Modal to view discovered folders with git info and bulk import
+
+### v0.2.1 (Jan 18, 2026)
+- **Database integration**: PostgreSQL persistence with repository pattern
+- **Workspace auto-import**: Scans `/workspaces` on startup
+- **Transcript parsing**: Fixed to handle Codex event types
+- **CSS fix**: Static assets for standalone Docker mode
+
+### v0.2.0 (Base)
 - **Multi-runner support**: Codex (OpenAI) and Claude (Anthropic) agents
 - **Workspace registry**: Import and manage workspaces (GitHub URL or local path)
 - **Session management**: Create, list, and continue sessions per workspace
@@ -57,13 +68,30 @@ docker compose up --build
 ## Using the Agent Console
 
 1. Open `http://localhost:9100/codex`
-2. Paste a public repository URL (example: `https://github.com/octocat/Hello-World`)
-3. Select a runner (Codex or Claude)
-4. Click "Create Session"
-5. Enter a prompt
-6. Click "Run Prompt"
-7. Watch the transcript update in real time
-8. Toggle "Raw Events" to see the underlying SSE stream
+2. **Import a workspace**:
+   - Click "+ Import" and paste a GitHub URL, OR
+   - Click "🔍 Scan" to discover local folders in `/workspaces`
+3. Select a workspace from the dropdown
+4. Select a runner (Codex or Claude)
+5. Click "New Session" or continue an existing session
+6. Enter a prompt
+7. Click "Run Prompt"
+8. Watch the transcript update in real time
+9. Toggle "Raw Events" to see the underlying SSE stream
+
+### Adding Local Projects
+
+To work with a local project:
+
+```bash
+# Create the workspace structure
+mkdir -p workspaces/my-project/repo
+
+# Copy your project files
+cp -r /path/to/your/project/* workspaces/my-project/repo/
+
+# In the UI: Click "🔍 Scan" → Select folder → Import
+```
 
 ## Repository layout
 
@@ -113,5 +141,7 @@ alembic upgrade head
 
 ## Status
 
-- **v0.2.0 (dev branch)**: Multi-runner, workspace registry, session management, transcript UI
-- **Roadmap**: tenant/auth, Postgres persistence integration, healthcare-specific analysis modules, governance
+- **v0.2.2 (current)**: Local folder scan/import, database integration complete
+- **v0.2.1**: Transcript parsing fix, CSS fix, workspace auto-import
+- **v0.2.0**: Multi-runner, workspace registry, session management, transcript UI
+- **Roadmap**: v0.3.0 (authentication, RBAC, clinical workflows), v0.4.0 (multi-agent, lifecycle automation)
