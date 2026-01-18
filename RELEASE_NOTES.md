@@ -2,7 +2,7 @@
 
 ## v0.3.0 (Jan 18, 2026)
 
-### Enterprise UI Tab Uplift
+### Enterprise UI Tab Uplift + Dark Mode + Agents Rename
 
 This major release transforms the Dashboard, Projects, and Settings tabs from placeholders into fully functional, enterprise-grade interfaces with real data and professional UX.
 
@@ -49,10 +49,30 @@ This major release transforms the Dashboard, Projects, and Settings tabs from pl
 - `frontend/src/app/api/stats/dashboard/route.ts` - API proxy for dashboard stats
 - `frontend/src/app/api/health/services/route.ts` - API proxy for health checks
 
+#### UI Rename: Codex → Agents
+- Sidebar tab renamed from "Codex" to "Agents"
+- Runner dropdown: "Codex (OpenAI)" → "OpenAI Agent"
+- Runner dropdown: "Claude (Anthropic)" → "Claude Agent"
+- All UI references updated consistently
+
+#### Dark Mode Support
+- Full dark mode with Tailwind `darkMode: "class"`
+- High contrast text for readability
+- Sidebar active states with proper contrast
+- Form inputs, scrollbars, code blocks styled for dark mode
+- Theme switching applies immediately via Settings
+
+#### Favicon
+- Added SC (SaaS Codex) favicon with blue-purple gradient
+
 #### Modified Files
 - `frontend/src/app/(app)/dashboard/page.tsx` - Complete rewrite with real metrics and activity feed
 - `frontend/src/app/(app)/projects/page.tsx` - Complete rewrite with workspace cards and search
 - `frontend/src/app/(app)/settings/page.tsx` - Complete rewrite with sidebar navigation and forms
+- `frontend/src/components/Sidebar.tsx` - Dark mode classes, Agents rename
+- `frontend/src/app/globals.css` - Dark mode CSS styles
+- `frontend/tailwind.config.js` - Enable darkMode: "class"
+- `frontend/public/favicon.svg` - New favicon
 - `backend/app/main.py` - Added DashboardStatsResponse, SystemHealthResponse endpoints
 
 ---

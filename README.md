@@ -15,7 +15,9 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - **Dashboard Uplift**: Real metrics, activity feed, quick actions, system health status, auto-refresh
 - **Projects Uplift**: Workspace cards with search, session expansion, quick navigation
 - **Settings Uplift**: Sidebar navigation, localStorage persistence, immediate theme switching
-- **Runner Models**: Accurate model lists - Codex SDK v0.84.0, Claude Sonnet 4 (2025-05-14)
+- **Dark Mode**: Full dark mode support with high contrast text and proper styling
+- **Agents Rename**: "Codex" tab renamed to "Agents", runners renamed to "OpenAI Agent" / "Claude Agent"
+- **Favicon**: Added SC logo with blue-purple gradient
 - **New Endpoints**: `GET /api/stats/dashboard`, `GET /api/health/services`
 
 ### v0.2.6 (Jan 18, 2026)
