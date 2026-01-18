@@ -9,9 +9,15 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.2.6 (dev/v0.2.0 branch)
+## Current Release: v0.3.0 (dev/v0.2.0 branch)
 
-### v0.2.6 (Latest - Jan 18, 2026)
+### v0.3.0 (Latest - Jan 18, 2026)
+- **Dashboard Uplift**: Real metrics, activity feed, quick actions, system health status
+- **Projects Uplift**: Workspace cards with search, session expansion, quick navigation
+- **Settings Uplift**: Sidebar navigation, general/runner/appearance settings, about page
+- **New Endpoints**: `GET /api/stats/dashboard`, `GET /api/health/services`
+
+### v0.2.6 (Jan 18, 2026)
 - **Click-to-Load Run History**: Click run history items to load prompt and response
 - **Visual Feedback**: Selected run highlighted with blue background/border
 - **New Endpoint**: `GET /api/runs/{run_id}/detail` for fetching persisted run data

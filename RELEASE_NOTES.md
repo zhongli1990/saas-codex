@@ -1,5 +1,50 @@
 # Release Notes
 
+## v0.3.0 (Jan 18, 2026)
+
+### Enterprise UI Tab Uplift
+
+This major release transforms the Dashboard, Projects, and Settings tabs from placeholders into fully functional, enterprise-grade interfaces with real data and professional UX.
+
+#### Dashboard Tab
+- **Real Metrics**: Live counts for Workspaces, Sessions, Runs Today, and Total Runs from database
+- **Activity Feed**: Recent runs with status indicators, workspace names, runner types, and timestamps
+- **Quick Actions**: One-click navigation to Import Project, Start Chat, Run Codex, View Projects
+- **System Status**: Real-time health checks for Backend, Codex Runner, Claude Runner, and Database
+- **Auto-refresh**: Dashboard data automatically refreshes every 30 seconds
+- **Loading States**: Skeleton loaders provide visual feedback during data fetch
+
+#### Projects Tab
+- **Workspace Cards**: Rich cards showing display name, source URL/path, session/run counts, creation date
+- **Search & Filter**: Instantly filter workspaces by name or source URI
+- **Actions Menu**: Refresh and Copy Path options via dropdown menu
+- **Session Expansion**: Click to expand and view all sessions within a workspace
+- **Quick Navigation**: "Open in Codex" and "Open in Chat" buttons on each workspace card
+- **Empty State**: Helpful guidance when no workspaces exist
+
+#### Settings Tab
+- **Sidebar Navigation**: Clean category navigation (General, Runners, Appearance, About)
+- **General Settings**: Default runner selection, session timeout configuration, auto-save toggle
+- **Runner Configuration**: Model selection (GPT-4/Claude 3), max tokens, temperature slider, timeout
+- **Appearance Settings**: Theme (light/dark/system), compact mode, code font, syntax theme
+- **About Page**: Version info, build hash, license, and resource links
+
+#### New Backend Endpoints
+- `GET /api/stats/dashboard` - Aggregated dashboard statistics with workspace/session/run counts
+- `GET /api/health/services` - System health status for all backend services
+
+#### New Frontend Files
+- `frontend/src/app/api/stats/dashboard/route.ts` - API proxy for dashboard stats
+- `frontend/src/app/api/health/services/route.ts` - API proxy for health checks
+
+#### Modified Files
+- `frontend/src/app/(app)/dashboard/page.tsx` - Complete rewrite with real metrics and activity feed
+- `frontend/src/app/(app)/projects/page.tsx` - Complete rewrite with workspace cards and search
+- `frontend/src/app/(app)/settings/page.tsx` - Complete rewrite with sidebar navigation and forms
+- `backend/app/main.py` - Added DashboardStatsResponse, SystemHealthResponse endpoints
+
+---
+
 ## v0.2.6 (Jan 18, 2026)
 
 ### Click-to-Load Run History
