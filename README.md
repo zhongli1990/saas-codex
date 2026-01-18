@@ -9,9 +9,14 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.2.5 (dev/v0.2.0 branch)
+## Current Release: v0.2.6 (dev/v0.2.0 branch)
 
-### v0.2.5 (Latest - Jan 18, 2026)
+### v0.2.6 (Latest - Jan 18, 2026)
+- **Click-to-Load Run History**: Click run history items to load prompt and response
+- **Visual Feedback**: Selected run highlighted with blue background/border
+- **New Endpoint**: `GET /api/runs/{run_id}/detail` for fetching persisted run data
+
+### v0.2.5 (Jan 18, 2026)
 - **Shared App Context**: State persists across tab switches (Chat ↔ Codex)
 - **Sidebar Navigation Fix**: Active tab highlight follows clicks properly
 - **Thread Recovery**: Auto-recreate expired runner threads after container restart
