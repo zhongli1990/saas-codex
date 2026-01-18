@@ -54,13 +54,21 @@ Container internal URLs:
 2. Backend forwards to runner `POST /runs` with `{ threadId, prompt }`
 3. Runner:
    - starts `thread.runStreamed(prompt)`
-   - publishes events to an in-memory run buffer
+   - publishes events to an in-memory run buffer (so late subscribers can replay)
+   - wraps the streamed events with lifecycle markers:
+     - `{ "type": "run.started", ... }` at the beginning
+     - `{ "type": "run.completed", ... }` on success
+     - `{ "type": "error", ... }` on failure
 4. Backend returns `{ run_id }`
 
 ### 3.3 Stream events (SSE)
 1. UI opens `GET /api/runs/{run_id}/events` with `EventSource`
 2. Next.js proxies to backend `GET /api/runs/{run_id}/events`
 3. Backend streams bytes from runner `GET /runs/{run_id}/events`
+
+Notes:
+- The runner replays any buffered SSE lines to new subscribers before streaming live events.
+- If a run is already finished, the runner ends the SSE stream after sending a final `{ "type": "stream.closed", ... }` event.
 
 ## 4. Key implementation details
 
@@ -88,7 +96,7 @@ This relies on Docker as the isolation boundary.
 - Backend stores sessions in memory (`_sessions` dict).
 - Runner stores:
   - `threads` in memory
-  - `runs` in memory (with buffered SSE lines)
+  - `runs` in memory (including buffered SSE lines for replay)
 
 Production design will require persistence and cleanup.
 
@@ -126,3 +134,44 @@ Frontend API routes:
 - Add private repo access via GitHub App / deploy keys.
 - Add tenant context + auth.
 - Add diff visualization and patch apply workflow.
+
+## 8. v0.2.0 planned changes
+
+Planned scope for the next release is documented in:
+- `docs/Product_Requirements_v0.2.0.md`
+- `docs/v0.2.0_Implementation_Plan.md`
+
+### 8.1 Multi-runner routing
+
+Add a second runner type in addition to the current Codex runner:
+- `codex` (existing): Node + `@openai/codex-sdk`
+- `claude` (planned): Claude Agent SDK runner service
+
+Backend will select a runner URL based on session runner type (example):
+- `RUNNER_CODEX_URL=http://runner:8081`
+- `RUNNER_CLAUDE_URL=http://claude-runner:8082`
+
+The runner API contract remains consistent:
+- `POST /threads`
+- `POST /runs`
+- `GET /runs/{runId}/events` (SSE)
+
+### 8.2 Workspace registry and import
+
+Move from clone-per-session to an explicit workspace registry:
+- Backend provides endpoints to import and list workspaces.
+- Sessions reference `workspace_id` (and a runner type), rather than always cloning.
+
+### 8.3 Transcript UX + raw event persistence
+
+Add persisted run history and lossless raw event storage.
+- Store raw SSE events as received from runners.
+- Derive a human-readable transcript for the UI (Markdown rendering).
+
+### 8.4 Initial microservices
+
+Introduce working placeholder services for:
+- Prompt Manager
+- Evaluation
+- Memory
+- LLM Gateway

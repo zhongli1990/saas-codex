@@ -129,9 +129,13 @@ app.get("/runs/:runId/events", (req: Request, res: Response) => {
     return;
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  res.flushHeaders?.();
+  res.write(`: connected\n\n`);
 
   for (const line of run.buffer) {
     res.write(line);

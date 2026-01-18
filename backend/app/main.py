@@ -124,8 +124,13 @@ async def prompt(session_id: str, req: PromptRequest) -> PromptResponse:
 @app.get("/api/runs/{run_id}/events")
 async def run_events(run_id: str) -> StreamingResponse:
     async def stream() -> AsyncIterator[bytes]:
+        yield b": connected\n\n"
         async with httpx.AsyncClient(timeout=None) as client:
-            async with client.stream("GET", f"{RUNNER_URL}/runs/{run_id}/events") as r:
+            async with client.stream(
+                "GET",
+                f"{RUNNER_URL}/runs/{run_id}/events",
+                headers={"Accept": "text/event-stream"},
+            ) as r:
                 if r.status_code >= 400:
                     yield f"data: {{\"type\":\"error\",\"message\":{r.text!r}}}\n\n".encode("utf-8")
                     return
@@ -135,5 +140,9 @@ async def run_events(run_id: str) -> StreamingResponse:
     return StreamingResponse(
         stream(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache"},
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )

@@ -11,12 +11,15 @@ export async function GET(_req: Request, ctx: { params: { runId: string } }) {
     }
   });
 
+  const contentType = upstream.headers.get("content-type") || "text/event-stream";
+
   return new Response(upstream.body, {
     status: upstream.status,
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive"
+      "Content-Type": contentType,
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no"
     }
   });
 }

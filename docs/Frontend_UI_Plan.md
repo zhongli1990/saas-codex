@@ -57,6 +57,44 @@ If/when you want the full shadcn/ui component set, we will add it after Phase 1 
 
 ## UI feature roadmap
 
+## v0.2.0 planned uplift
+
+Planned scope for the next release is documented in:
+- `docs/Product_Requirements_v0.2.0.md`
+ - `docs/v0.2.0_Implementation_Plan.md`
+
+v0.2.0 UI uplift focuses on making the existing `/codex` page usable as a multi-workspace, multi-runner console.
+
+### v0.2.0 — Workspace import and registry
+
+- Add workspace source input(s):
+  - GitHub URL (clone)
+  - Local workspace path (server-side accessible)
+- Add a workspace dropdown listing imported workspaces.
+- Display sensible workspace names derived from source metadata.
+
+### v0.2.0 — Runner selection
+
+- Add a runner dropdown:
+  - Codex
+  - Claude
+
+Runner selection is applied at **session creation time** and is fixed per session.
+
+### v0.2.0 — Transcript UX
+
+- Replace the current raw JSON textarea as the primary UX.
+- Provide:
+  - a readable transcript view (Markdown)
+  - a raw events view (lossless JSON/event stream) for debugging/audit
+
+### v0.2.0 — Session selection and continuation
+
+- After selecting a workspace, show a sessions list for that workspace.
+- Support:
+  - create new session (choose runner)
+  - continue existing session
+
 ### Phase 1 — SaaS shell + navigation + placeholders (start now)
 Deliver a UI that looks and behaves like a SaaS dashboard, while keeping existing functionality.
 

@@ -40,7 +40,7 @@ Open:
 
 ## Using the Codex UI
 
-1. Open `http://localhost:9100/codex`
+1. Open `http://localhost:9100/codex` (or open `http://localhost:9100` and follow the redirect to `/dashboard`)
 2. Paste a public repository URL (example: `https://github.com/octocat/Hello-World`)
 3. Click "Create session (clone)"
 4. Enter a prompt
@@ -57,6 +57,7 @@ Open:
 ## Documentation
 
 - `docs/Product_Requirements.md`
+- `docs/Product_Requirements_v0.2.0.md`
 - `docs/Solution_Design.md`
 - `docs/Dev_Environment.md`
 
@@ -68,4 +69,5 @@ Open:
 ## Status
 
 - MVP: repo URL -> session -> prompt -> SSE events is operational.
+- Next release scope: see `docs/Product_Requirements_v0.2.0.md`.
 - Roadmap: tenant/auth, project/session persistence, healthcare-specific analysis modules, governance.

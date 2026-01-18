@@ -36,6 +36,8 @@ CODEX_API_KEY=...
 docker compose up --build
 ```
 
+Note: the frontend is built with `output: "standalone"` and the container runs the standalone server (`node .next/standalone/server.js`). For local development (outside Docker), use `npm run dev` in `frontend/`.
+
 ### 3) Ports
 
 - Frontend: `http://localhost:9100`
