@@ -8,7 +8,8 @@ export async function GET(
 ) {
   const upstream = await fetch(`${BACKEND_URL}/api/sessions/${params.sessionId}/runs`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
   });
   return new Response(upstream.body, {
     status: upstream.status,
