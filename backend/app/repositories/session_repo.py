@@ -47,3 +47,13 @@ class SessionRepository:
             .order_by(Session.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def update_thread_id(self, session_id: uuid.UUID, new_thread_id: str) -> None:
+        """Update the runner_thread_id for a session (used for thread recovery)."""
+        result = await self.db.execute(
+            select(Session).where(Session.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session:
+            session.runner_thread_id = new_thread_id
+            await self.db.commit()

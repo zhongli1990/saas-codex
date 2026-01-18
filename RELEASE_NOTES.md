@@ -1,5 +1,36 @@
 # Release Notes
 
+## v0.2.5 (Jan 18, 2026)
+
+### UI/UX Improvements & Bug Fixes
+
+This release focuses on improving the user experience when switching between tabs and fixing several bugs.
+
+#### Features
+- **Shared App Context**: React context that persists state across tab switches
+- **Sidebar Navigation Fix**: Active tab highlight now properly follows clicks using `usePathname`
+- **Thread Recovery**: Backend automatically recreates expired runner threads after container restart
+- **Codex Message Persistence**: Codex prompts and responses now saved to messages table
+- **URL State Sync**: Workspace and session IDs synced to URL params for bookmarking
+
+#### Bug Fixes
+- Fixed Chat UI not displaying responses from Codex runner (event parsing)
+- Fixed tab state resetting when switching between Chat and Codex tabs
+- Fixed sidebar highlight staying on wrong tab after navigation
+- Fixed 502 error when using sessions created before container restart
+
+#### New Files
+- `frontend/src/contexts/AppContext.tsx` - Shared state context for all pages
+
+#### Technical Changes
+- Backend `prompt` endpoint now handles "thread not found" by recreating thread
+- Added `update_thread_id` method to SessionRepository
+- Both Chat and Codex pages now use shared AppContext
+- Sidebar uses `usePathname` instead of `window.location.pathname`
+- Added TypeScript path aliases (`@/*`) to tsconfig.json
+
+---
+
 ## v0.2.4 (Jan 18, 2026)
 
 ### Enterprise Chat UI

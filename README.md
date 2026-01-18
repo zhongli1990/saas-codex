@@ -9,9 +9,16 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.2.4 (dev/v0.2.0 branch)
+## Current Release: v0.2.5 (dev/v0.2.0 branch)
 
-### v0.2.4 (Latest - Jan 18, 2026)
+### v0.2.5 (Latest - Jan 18, 2026)
+- **Shared App Context**: State persists across tab switches (Chat ↔ Codex)
+- **Sidebar Navigation Fix**: Active tab highlight follows clicks properly
+- **Thread Recovery**: Auto-recreate expired runner threads after container restart
+- **Codex Message Persistence**: Codex prompts/responses now saved to database
+- **Bug fixes**: Chat UI event parsing, 502 errors on stale sessions
+
+### v0.2.4 (Jan 18, 2026)
 - **Enterprise Chat UI**: Dedicated `/chat` page with ChatGPT/Claude-style interface
 - **Message persistence**: All conversations saved to database with history loading
 - **Syntax highlighting**: Prism code blocks with dark theme

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/dashboard", label: "Dashboard" },
@@ -12,11 +12,7 @@ const items = [
 ];
 
 export default function Sidebar() {
-  const [pathname, setPathname] = useState<string>("/");
-
-  useEffect(() => {
-    setPathname(window.location.pathname);
-  }, []);
+  const pathname = usePathname();
 
   return (
     <div className="flex h-full flex-col p-4">

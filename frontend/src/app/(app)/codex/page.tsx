@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useAppContext } from "@/contexts/AppContext";
 
 type RunnerType = "codex" | "claude";
 
@@ -19,13 +21,13 @@ type TranscriptMessage = {
   toolOutput?: any;
 };
 
-type Workspace = {
-  workspace_id: string;
-  display_name: string;
-  source_type: string;
-  source_uri: string;
-  local_path: string;
+type Run = {
+  run_id: string;
+  session_id: string;
+  prompt: string;
+  status: string;
   created_at: string;
+  completed_at: string | null;
 };
 
 type Session = {
@@ -37,15 +39,6 @@ type Session = {
   run_count: number;
 };
 
-type Run = {
-  run_id: string;
-  session_id: string;
-  prompt: string;
-  status: string;
-  created_at: string;
-  completed_at: string | null;
-};
-
 type DiscoveredFolder = {
   folder_name: string;
   path: string;
@@ -54,10 +47,29 @@ type DiscoveredFolder = {
   suggested_name: string;
 };
 
-export default function CodexPage() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
+function CodexPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const {
+    workspaces,
+    selectedWorkspaceId,
+    setSelectedWorkspaceId,
+    sessions,
+    sessionId,
+    setSessionId,
+    runnerType,
+    setRunnerType,
+    codexEvents: events,
+    setCodexEvents: setEvents,
+    codexStatus: status,
+    setCodexStatus: setStatus,
+    codexRunId: runId,
+    setCodexRunId: setRunId,
+    fetchWorkspaces,
+    fetchSessions,
+  } = useAppContext();
+  
   const [runs, setRuns] = useState<Run[]>([]);
   const [showImportForm, setShowImportForm] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
@@ -65,38 +77,29 @@ export default function CodexPage() {
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
   const [folderNames, setFolderNames] = useState<Record<string, string>>({});
   const [repoUrl, setRepoUrl] = useState("");
-  const [runnerType, setRunnerType] = useState<RunnerType>("codex");
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [runId, setRunId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
-  const [events, setEvents] = useState<EventLine[]>([]);
-  const [status, setStatus] = useState<string>("idle");
   const [viewMode, setViewMode] = useState<"transcript" | "raw">("transcript");
+  const [initialized, setInitialized] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchWorkspaces = useCallback(async () => {
-    try {
-      const r = await fetch("/api/workspaces");
-      if (r.ok) {
-        const data = await r.json();
-        setWorkspaces(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch workspaces:", e);
-    }
-  }, []);
+  // Initialize from URL params (only on first load)
+  useEffect(() => {
+    const wsParam = searchParams.get("workspace");
+    const sessParam = searchParams.get("session");
+    if (wsParam && !selectedWorkspaceId) setSelectedWorkspaceId(wsParam);
+    if (sessParam && !sessionId) setSessionId(sessParam);
+    setInitialized(true);
+  }, [searchParams, selectedWorkspaceId, sessionId, setSelectedWorkspaceId, setSessionId]);
 
-  const fetchSessions = useCallback(async (workspaceId: string) => {
-    try {
-      const r = await fetch(`/api/workspaces/${workspaceId}/sessions`);
-      if (r.ok) {
-        const data = await r.json();
-        setSessions(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch sessions:", e);
-    }
-  }, []);
+  // Update URL when workspace/session changes
+  useEffect(() => {
+    if (!initialized) return;
+    const params = new URLSearchParams();
+    if (selectedWorkspaceId) params.set("workspace", selectedWorkspaceId);
+    if (sessionId) params.set("session", sessionId);
+    const newUrl = params.toString() ? `?${params.toString()}` : "/codex";
+    router.replace(newUrl, { scroll: false });
+  }, [selectedWorkspaceId, sessionId, initialized, router]);
 
   const fetchRuns = useCallback(async (sessionId: string) => {
     try {
@@ -117,8 +120,6 @@ export default function CodexPage() {
   useEffect(() => {
     if (selectedWorkspaceId) {
       fetchSessions(selectedWorkspaceId);
-    } else {
-      setSessions([]);
     }
   }, [selectedWorkspaceId, fetchSessions]);
 
@@ -321,6 +322,13 @@ export default function CodexPage() {
     setStatus("running");
     setEvents([]);
 
+    // Persist user message to database
+    await fetch(`/api/sessions/${sessionId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "user", content: prompt })
+    });
+
     const r = await fetch(`/api/sessions/${sessionId}/prompt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -336,15 +344,74 @@ export default function CodexPage() {
     const nextRunId = data.run_id;
     setRunId(nextRunId);
 
+    let assistantContent = "";
+    const toolMessages: Array<{ role: string; content: string; metadata?: any }> = [];
+
     const es = new EventSource(`/api/runs/${nextRunId}/events`);
     es.onmessage = (msg) => {
       try {
         const parsed = JSON.parse(msg.data);
         setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: parsed }]);
 
+        // Capture assistant content and tool calls for persistence
+        if (parsed.type === "item.completed" && parsed.item) {
+          const item = parsed.item;
+          if (item.type === "agent_message" && item.text) {
+            assistantContent = item.text;
+          } else if (item.type === "command_execution") {
+            toolMessages.push({
+              role: "tool",
+              content: "shell",
+              metadata: {
+                tool_name: "shell",
+                tool_input: item.command,
+                tool_output: item.aggregated_output || `Exit code: ${item.exit_code}`
+              }
+            });
+          }
+        } else if (parsed.type === "ui.message.assistant.final") {
+          assistantContent = parsed.payload?.text || assistantContent;
+        } else if (parsed.type === "ui.tool.result") {
+          toolMessages.push({
+            role: "tool",
+            content: parsed.payload?.toolName || "tool",
+            metadata: {
+              tool_name: parsed.payload?.toolName,
+              tool_output: parsed.payload?.output
+            }
+          });
+        }
+
         if (parsed.type === "run.completed" || parsed.type === "stream.closed") {
           setStatus("completed");
           es.close();
+          
+          // Persist assistant and tool messages to database
+          (async () => {
+            for (const toolMsg of toolMessages) {
+              await fetch(`/api/sessions/${sessionId}/messages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  role: toolMsg.role,
+                  content: toolMsg.content,
+                  run_id: nextRunId,
+                  metadata: toolMsg.metadata
+                })
+              });
+            }
+            if (assistantContent) {
+              await fetch(`/api/sessions/${sessionId}/messages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  role: "assistant",
+                  content: assistantContent,
+                  run_id: nextRunId
+                })
+              });
+            }
+          })();
         } else if (parsed.type === "error") {
           setStatus(`error: ${parsed.payload?.message || parsed.message || "unknown"}`);
           es.close();
@@ -733,5 +800,13 @@ export default function CodexPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CodexPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center p-8"><div className="text-zinc-500">Loading...</div></div>}>
+      <CodexPageContent />
+    </Suspense>
   );
 }
