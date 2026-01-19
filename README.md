@@ -9,9 +9,13 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.4.1
+## Current Release: v0.4.2
 
-### v0.4.1 (Latest - Jan 19, 2026)
+### v0.4.2 (Latest - Jan 19, 2026)
+- **Codex Git Trust Check Disabled**: Supports running prompts in manually copied folders (`skipGitRepoCheck=true`)
+- **Workspace Button Order**: Import → Scan → Remove
+
+### v0.4.1 (Jan 19, 2026)
 - **Simplified Agents Workflow**: Runner always enabled, Create Session always visible
 - **Auto-Clear on Runner Change**: Changing runner clears current session
 - **Clear Session Button**: Explicit button to clear session
@@ -190,7 +194,8 @@ alembic upgrade head
 
 ## Status
 
-- **v0.4.1 (current)**: Simplified Agents workflow, Remove Workspace feature
+- **v0.4.2 (current)**: Codex skip git trust check fix, workspace button order polish
+- **v0.4.1**: Simplified Agents workflow, Remove Workspace feature
 - **v0.4.0**: User authentication, RBAC, admin approval workflow
 - **v0.3.0**: Enterprise UI uplift, dark mode, Agents rename, favicon
 - **v0.2.6**: Click-to-load run history

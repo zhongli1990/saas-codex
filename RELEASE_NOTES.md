@@ -1,5 +1,24 @@
 # Release Notes
 
+## v0.4.2 (Jan 19, 2026)
+
+### Agents Reliability + UX Polish
+
+This patch release improves reliability when running Codex prompts on manually copied local folders, and includes minor Agents UI polish.
+
+#### Reliability Fix
+- **Codex Git Trust Check Disabled**: Backend now creates Codex threads with `skipGitRepoCheck=true` so prompts can run in manually copied folders that are not trusted git repositories.
+
+#### UX Polish
+- **Workspace Button Order**: Workspace panel header buttons are now ordered **Import → Scan → Remove**.
+
+#### Files Changed
+- `backend/app/main.py` - Set `skipGitRepoCheck` true when creating/recreating threads
+- `frontend/src/app/(app)/codex/page.tsx` - Reorder workspace panel buttons
+- `docs/v0.2.0_Status_and_Roadmap.md` - Update commit history
+
+---
+
 ## v0.4.1 (Jan 19, 2026)
 
 ### Agents Page Workflow Improvements
