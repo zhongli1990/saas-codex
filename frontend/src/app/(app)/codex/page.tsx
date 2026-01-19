@@ -560,24 +560,8 @@ function CodexPageContent() {
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-zinc-900">
-                {sessionId ? "Current Session" : "New Session"}
-              </div>
-              {sessionId && (
-                <button
-                  onClick={() => {
-                    setSessionId(null);
-                    setEvents([]);
-                    setRunId(null);
-                    setStatus("idle");
-                    setPrompt("");
-                  }}
-                  className="text-xs text-zinc-500 hover:text-zinc-700"
-                >
-                  ✕ Clear
-                </button>
-              )}
+            <div className="text-sm font-medium text-zinc-900">
+              {sessionId ? "Current Session" : "New Session"}
             </div>
             <div className="mt-3 space-y-3">
               <label className="block">
@@ -595,13 +579,28 @@ function CodexPageContent() {
                   <p className="mt-1 text-xs text-zinc-500">Clear session to change runner</p>
                 )}
               </label>
-              <button
-                onClick={onCreateSession}
-                disabled={!selectedWorkspaceId || status === "creating-session" || !!sessionId}
-                className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-              >
-                Create Session
-              </button>
+              {sessionId ? (
+                <button
+                  onClick={() => {
+                    setSessionId(null);
+                    setEvents([]);
+                    setRunId(null);
+                    setStatus("idle");
+                    setPrompt("");
+                  }}
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  New Session
+                </button>
+              ) : (
+                <button
+                  onClick={onCreateSession}
+                  disabled={!selectedWorkspaceId || status === "creating-session"}
+                  className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Create Session
+                </button>
+              )}
             </div>
           </div>
 
