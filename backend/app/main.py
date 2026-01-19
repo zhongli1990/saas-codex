@@ -548,6 +548,28 @@ async def get_workspace(
     )
 
 
+@app.delete("/api/workspaces/{workspace_id}")
+async def delete_workspace(
+    workspace_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a workspace and all associated sessions, runs, and events."""
+    ws_repo = WorkspaceRepository(db)
+    ws = await ws_repo.get_by_id(uuid.UUID(workspace_id))
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    # Delete the workspace (cascade will handle sessions, runs, events)
+    await ws_repo.delete(uuid.UUID(workspace_id))
+    
+    # Optionally delete local files (commented out for safety)
+    # local_path = pathlib.Path(ws.local_path)
+    # if local_path.exists():
+    #     shutil.rmtree(local_path)
+    
+    return {"status": "deleted", "workspace_id": workspace_id}
+
+
 @app.get("/api/workspaces/{workspace_id}/sessions", response_model=SessionListResponse)
 async def list_workspace_sessions(
     workspace_id: str,

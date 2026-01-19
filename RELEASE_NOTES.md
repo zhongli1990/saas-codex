@@ -1,5 +1,38 @@
 # Release Notes
 
+## v0.4.1 (Jan 19, 2026)
+
+### Agents Page Workflow Improvements
+
+This patch release simplifies the Agents page workflow for better UX when managing workspaces, sessions, and runners.
+
+#### Simplified Workflow
+- **Runner Always Enabled**: Runner dropdown is now always selectable, not locked when session exists
+- **Auto-Clear on Runner Change**: Changing runner automatically clears the current session
+- **Create Session Always Visible**: Button always visible when workspace selected
+- **Clear Session Button**: New button to explicitly clear session without changing runner
+
+#### Remove Workspace Feature
+- **Delete Button**: New 🗑️ Remove button in workspace panel
+- **Confirmation Dialog**: Prevents accidental deletion with modal confirmation
+- **Cascade Delete**: Removes workspace and all associated sessions/runs
+
+#### New API Endpoint
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/workspaces/{id}` | DELETE | Delete workspace and all sessions/runs |
+
+#### Files Changed
+- `frontend/src/app/(app)/codex/page.tsx` - Simplified workflow, delete confirmation
+- `backend/app/main.py` - DELETE workspace endpoint
+- `backend/app/repositories/workspace_repo.py` - delete() method
+- `frontend/src/app/api/workspaces/[workspaceId]/route.ts` - DELETE proxy
+
+#### Design Document
+- `docs/v0.4.1_Agents_Workflow_Design.md` - Full lifecycle design specification
+
+---
+
 ## v0.4.0 (Jan 18, 2026)
 
 ### User Authentication & Role-Based Access Control (RBAC)

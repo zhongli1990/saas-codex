@@ -65,3 +65,12 @@ class WorkspaceRepository:
         if workspace:
             workspace.last_accessed_at = datetime.now(timezone.utc)
             await self.db.commit()
+
+    async def delete(self, workspace_id: uuid.UUID) -> bool:
+        """Delete a workspace. Cascade delete will handle sessions, runs, events."""
+        workspace = await self.get_by_id(workspace_id)
+        if workspace:
+            await self.db.delete(workspace)
+            await self.db.commit()
+            return True
+        return False

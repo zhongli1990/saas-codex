@@ -73,6 +73,7 @@ function CodexPageContent() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [showImportForm, setShowImportForm] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [discoveredFolders, setDiscoveredFolders] = useState<DiscoveredFolder[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
   const [folderNames, setFolderNames] = useState<Record<string, string>>({});
@@ -340,6 +341,31 @@ function CodexPageContent() {
     setStatus("session-ready");
   }
 
+  async function onDeleteWorkspace() {
+    if (!selectedWorkspaceId) return;
+    setStatus("deleting");
+    try {
+      const r = await fetch(`/api/workspaces/${selectedWorkspaceId}`, {
+        method: "DELETE"
+      });
+      if (r.ok) {
+        setSelectedWorkspaceId(null);
+        setSessionId(null);
+        setEvents([]);
+        setRunId(null);
+        setStatus("idle");
+        setPrompt("");
+        setShowDeleteConfirm(false);
+        await fetchWorkspaces();
+      } else {
+        setStatus(`error: ${await r.text()}`);
+      }
+    } catch (e) {
+      console.error("Failed to delete workspace:", e);
+      setStatus("error: failed to delete");
+    }
+  }
+
   async function onRunPrompt() {
     if (!sessionId) return;
 
@@ -454,6 +480,34 @@ function CodexPageContent() {
 
   return (
     <div className="space-y-6">
+      {/* Delete Workspace Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-lg bg-white p-6 shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-zinc-900">Delete Workspace?</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              This will permanently delete the workspace and all associated sessions and runs.
+              This action cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onDeleteWorkspace}
+                disabled={status === "deleting"}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {status === "deleting" ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Agent Console</h1>
         <p className="mt-1 text-sm text-zinc-600">
@@ -467,6 +521,15 @@ function CodexPageContent() {
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-zinc-900">Workspace</div>
               <div className="flex gap-2">
+                {selectedWorkspaceId && !showImportForm && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-xs text-red-600 hover:text-red-800"
+                    title="Remove workspace"
+                  >
+                    🗑️ Remove
+                  </button>
+                )}
                 <button
                   onClick={onScanLocal}
                   disabled={status === "scanning"}
@@ -560,26 +623,31 @@ function CodexPageContent() {
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="text-sm font-medium text-zinc-900">
-              {sessionId ? "Current Session" : "New Session"}
-            </div>
+            <div className="text-sm font-medium text-zinc-900">Session</div>
             <div className="mt-3 space-y-3">
               <label className="block">
                 <div className="text-xs font-medium text-zinc-700">Runner</div>
                 <select
                   value={runnerType}
-                  onChange={(e) => setRunnerType(e.target.value as RunnerType)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm disabled:bg-zinc-100 disabled:text-zinc-500"
-                  disabled={!!sessionId}
+                  onChange={(e) => {
+                    const newRunner = e.target.value as RunnerType;
+                    setRunnerType(newRunner);
+                    // Auto-clear session when runner changes
+                    if (sessionId) {
+                      setSessionId(null);
+                      setEvents([]);
+                      setRunId(null);
+                      setStatus("idle");
+                      setPrompt("");
+                    }
+                  }}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                 >
                   <option value="codex">OpenAI Agent</option>
                   <option value="claude">Claude Agent</option>
                 </select>
-                {sessionId && (
-                  <p className="mt-1 text-xs text-zinc-500">Clear session to change runner</p>
-                )}
               </label>
-              {sessionId ? (
+              {sessionId && (
                 <button
                   onClick={() => {
                     setSessionId(null);
@@ -590,17 +658,16 @@ function CodexPageContent() {
                   }}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                 >
-                  New Session
-                </button>
-              ) : (
-                <button
-                  onClick={onCreateSession}
-                  disabled={!selectedWorkspaceId || status === "creating-session"}
-                  className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  Create Session
+                  Clear Session
                 </button>
               )}
+              <button
+                onClick={onCreateSession}
+                disabled={!selectedWorkspaceId || status === "creating-session"}
+                className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Create Session
+              </button>
             </div>
           </div>
 
