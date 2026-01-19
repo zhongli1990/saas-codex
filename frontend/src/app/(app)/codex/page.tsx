@@ -145,10 +145,15 @@ function CodexPageContent() {
   useEffect(() => {
     if (sessionId) {
       fetchRuns(sessionId);
+      // Update runner type to match the selected session
+      const session = sessions.find(s => s.session_id === sessionId);
+      if (session) {
+        setRunnerType(session.runner_type);
+      }
     } else {
       setRuns([]);
     }
-  }, [sessionId, fetchRuns]);
+  }, [sessionId, sessions, fetchRuns, setRunnerType]);
 
   const eventsText = useMemo(() => {
     return events
@@ -555,23 +560,44 @@ function CodexPageContent() {
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="text-sm font-medium text-zinc-900">New Session</div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-zinc-900">
+                {sessionId ? "Current Session" : "New Session"}
+              </div>
+              {sessionId && (
+                <button
+                  onClick={() => {
+                    setSessionId(null);
+                    setEvents([]);
+                    setRunId(null);
+                    setStatus("idle");
+                    setPrompt("");
+                  }}
+                  className="text-xs text-zinc-500 hover:text-zinc-700"
+                >
+                  ✕ Clear
+                </button>
+              )}
+            </div>
             <div className="mt-3 space-y-3">
               <label className="block">
                 <div className="text-xs font-medium text-zinc-700">Runner</div>
                 <select
                   value={runnerType}
                   onChange={(e) => setRunnerType(e.target.value as RunnerType)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm disabled:bg-zinc-100 disabled:text-zinc-500"
                   disabled={!!sessionId}
                 >
                   <option value="codex">OpenAI Agent</option>
                   <option value="claude">Claude Agent</option>
                 </select>
+                {sessionId && (
+                  <p className="mt-1 text-xs text-zinc-500">Clear session to change runner</p>
+                )}
               </label>
               <button
                 onClick={onCreateSession}
-                disabled={!selectedWorkspaceId || status === "creating-session"}
+                disabled={!selectedWorkspaceId || status === "creating-session" || !!sessionId}
                 className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
               >
                 Create Session
