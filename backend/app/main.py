@@ -647,7 +647,7 @@ async def create_session(
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post(
             f"{runner_url}/threads",
-            json={"workingDirectory": repo_path, "skipGitRepoCheck": False},
+            json={"workingDirectory": repo_path, "skipGitRepoCheck": True},
         )
         if r.status_code >= 400:
             raise HTTPException(status_code=502, detail=f"runner error: {r.text}")
