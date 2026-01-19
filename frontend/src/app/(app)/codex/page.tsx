@@ -521,6 +521,20 @@ function CodexPageContent() {
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-zinc-900">Workspace</div>
               <div className="flex gap-2">
+                <button
+                  onClick={() => setShowImportForm(!showImportForm)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  {showImportForm ? "Cancel" : "+ Import"}
+                </button>
+                <button
+                  onClick={onScanLocal}
+                  disabled={status === "scanning"}
+                  className="text-xs text-zinc-600 hover:text-zinc-800"
+                  title="Scan for local folders"
+                >
+                  🔍 Scan
+                </button>
                 {selectedWorkspaceId && !showImportForm && (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
@@ -530,20 +544,6 @@ function CodexPageContent() {
                     🗑️ Remove
                   </button>
                 )}
-                <button
-                  onClick={onScanLocal}
-                  disabled={status === "scanning"}
-                  className="text-xs text-zinc-600 hover:text-zinc-800"
-                  title="Scan for local folders"
-                >
-                  🔍 Scan
-                </button>
-                <button
-                  onClick={() => setShowImportForm(!showImportForm)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  {showImportForm ? "Cancel" : "+ Import"}
-                </button>
               </div>
             </div>
             <div className="mt-3 space-y-3">
