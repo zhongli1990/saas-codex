@@ -5,7 +5,8 @@
 saas-codex is a SaaS platform for **agentic AI-driven analysis and implementation** of healthcare integrations.
 
 Next release planning:
-- [docs/Product_Requirements_v0.2.0.md](docs/Product_Requirements_v0.2.0.md)
+- [archive/Product_Requirements_v0.2.0_Archive.md](archive/Product_Requirements_v0.2.0_Archive.md)
+- [File_Management_Requirements.md](File_Management_Requirements.md)
 
 Primary goals:
 - Provide a safe, repeatable workflow to analyze integration codebases (HL7 v2, FHIR, X12, proprietary APIs).

@@ -1,6 +1,6 @@
-# v0.2.0 Implementation Status and Future Roadmap
+# SaaS Codex Implementation Status and Roadmap
 
-This document provides a comprehensive status report of v0.2.0 implementation, pending refinements, and the roadmap for future releases targeting NHS Trust non-technical clinical users.
+This document provides a comprehensive status report of all releases, pending refinements, and the roadmap for future releases targeting NHS Trust non-technical clinical users.
 
 ---
 
@@ -280,7 +280,7 @@ idle → creating-session → session-ready → running → completed/error
 
 ### 3.7 v0.3.0 UI Tab Uplift (✅ COMPLETE - Jan 18, 2026)
 
-See detailed proposal: `docs/v0.3.0_UI_Tab_Uplift_Proposal.md`
+See detailed proposal: `archive/v0.3.0_UI_Tab_Uplift_Proposal.md`
 
 #### Dashboard Tab Uplift
 
@@ -642,8 +642,47 @@ User: "Generate a test plan for the new discharge notification"
 | v0.2.2 | Jan 18, 2026 | Local folder scan/import | ✅ Complete |
 | v0.2.3 | Jan 18, 2026 | Real-time workspace sync, cache bypass | ✅ Complete |
 | v0.2.4 | Jan 18, 2026 | Enterprise Chat UI, message persistence | ✅ Complete |
-| v0.2.5 | TBD | Run history, message search, export | 🔜 Planned |
-| v0.3.0 | Mar 2026 | Clinical user workflows, authentication | 🔜 Planned |
-| v0.3.1 | Apr 2026 | Task wizards, guided workflows | 🔜 Planned |
-| v0.4.0 | Q2 2026 | Full lifecycle automation, multi-agent | 🔜 Planned |
+| v0.2.5 | Jan 18, 2026 | State persistence, sidebar fix, thread recovery | ✅ Complete |
+| v0.2.6 | Jan 18, 2026 | Click-to-load run history | ✅ Complete |
+| v0.3.0 | Jan 18, 2026 | Dashboard, Projects, Settings UI tab uplift | ✅ Complete |
+| v0.4.0 | Jan 19, 2026 | User authentication and RBAC | ✅ Complete |
+| v0.4.1 | Jan 19, 2026 | Simplified Agents workflow, Remove Workspace | ✅ Complete |
+| v0.4.2 | Jan 19, 2026 | Codex skip git trust check | ✅ Complete |
+| v0.5.0 | Feb 6, 2026 | Local folder upload, File browser & download, RBAC groups | ✅ Complete |
+| v0.6.0 | Mar 2026 | Clinical user workflows, task wizards | 🔜 Planned |
+| v0.7.0 | Q2 2026 | Full lifecycle automation, multi-agent | 🔜 Planned |
 
+---
+
+## v0.5.0 Features (Complete)
+
+### Local Folder Upload
+- **📤 Upload button** in Agents Tab workspace panel
+- Upload entire project folders from browser (up to 1GB)
+- Browser-side ZIP compression before upload
+- Automatic workspace registration
+
+### Workspace File Browser & Download
+- **📁 Files tab** in Agents Tab Output panel
+- **📁 Files panel** in Chat UI sidebar
+- Browse workspace directories
+- View file contents (text, code, markdown)
+- Download individual files or entire folders as ZIP
+- Upload additional files to workspace
+
+### RBAC Enhancements
+- Multi-tenant model for NHS Trust organizations
+- User groups for team-based access control
+- Workspace access grants (owner, editor, viewer)
+- Default download access for tenant users
+
+### Backend Changes
+- 6 new file API endpoints (list, view, download, download-zip, upload file, upload workspace)
+- `python-multipart` added for file upload support
+- Alembic migration 003 for RBAC tables
+
+### Database Schema
+- New tables: `tenants`, `groups`, `user_groups`, `workspace_access`
+- Added `owner_id` to workspaces, `tenant_id` to users
+
+See `File_Management_Design.md` for full specification.

@@ -60,8 +60,8 @@ If/when you want the full shadcn/ui component set, we will add it after Phase 1 
 ## v0.2.0 planned uplift
 
 Planned scope for the next release is documented in:
-- `docs/Product_Requirements_v0.2.0.md`
- - `docs/v0.2.0_Implementation_Plan.md`
+- `archive/Product_Requirements_v0.2.0_Archive.md`
+- `archive/v0.2.0_Implementation_Plan_Archive.md`
 
 v0.2.0 UI uplift focuses on making the existing `/codex` page usable as a multi-workspace, multi-runner console.
 
@@ -159,6 +159,51 @@ Acceptance criteria:
 
 ## Progress log
 
+### 2026-02-06 (v0.5.0 Complete)
+
+- Created `File_Management_Design.md` with full technical specification
+- Created `File_Management_Requirements.md` with feature requirements
+- Updated `Status_and_Roadmap.md` with current features
+- Updated `archive/Auth_RBAC_v0.4_Archive.md` with RBAC extensions
+
+**v0.5.0 UI Changes Implemented:**
+
+- **Agents Tab - Workspace Panel**:
+  - ✅ Added "📤 Upload" button next to Import/Scan/Remove
+  - ✅ Upload modal with drag-and-drop folder selection
+  - ✅ Browser-side ZIP compression (JSZip)
+  - ✅ Upload progress indicator
+
+- **Agents Tab - Output Panel**:
+  - ✅ Added "📁 Files" tab alongside Transcript/Raw Events
+  - ✅ FileBrowser component with directory navigation
+  - ✅ FileViewer modal for text-based files
+  - ✅ Download buttons (single file, ZIP folder)
+  - ✅ Upload button for adding files to workspace
+
+- **Chat UI - Sidebar**:
+  - ✅ Added collapsible "📁 Files" panel below Sessions
+  - ✅ Compact FileBrowser component
+
+- **New Components Created**:
+  - ✅ `components/workspace/UploadModal.tsx`
+  - ✅ `components/workspace/FileBrowser.tsx`
+  - ✅ `components/workspace/index.ts`
+
+### 2026-01-19 (v0.4.x)
+
+- Implemented user authentication and RBAC (v0.4.0)
+- Simplified Agents workflow with always-enabled runner dropdown (v0.4.1)
+- Added Remove Workspace button with confirmation (v0.4.1)
+- Added Codex skip git trust check for manually copied folders (v0.4.2)
+
+### 2026-01-18 (v0.2.x - v0.3.0)
+
+- Enterprise Chat UI with message persistence (v0.2.4)
+- State persistence across tab switches (v0.2.5)
+- Click-to-load run history (v0.2.6)
+- Dashboard, Projects, Settings UI tab uplift (v0.3.0)
+
 ### 2026-01-15
 
 - Added TailwindCSS + PostCSS configuration and global styles.
@@ -169,5 +214,5 @@ Acceptance criteria:
 - Implemented `/` -> `/dashboard` redirect via `next.config.mjs` redirects.
 - Added basic sidebar active-route highlighting (client-side) without relying on `next/navigation`.
 - Resolved a Next.js route-group conflict by ensuring only one page resolves to each path (for example `/codex` lives under the `(app)` route group).
-- Added `docs/Dev_Environment.md` to pin Node.js 20 LTS and document Windows/AWS Ubuntu 24.04 setup.
+- Added `Dev_Environment.md` to pin Node.js 20 LTS and document Windows/AWS Ubuntu 24.04 setup.
 - Installed Node.js locally on Windows and installed `runner/` + `frontend/` npm dependencies (using `npm.cmd` to bypass PowerShell `npm.ps1` execution policy restrictions).

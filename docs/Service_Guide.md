@@ -1,6 +1,11 @@
-# v0.2.0 Service Guide
+# Service Guide
 
-This document provides comprehensive documentation of all services implemented in v0.2.0, including APIs, configuration, testing procedures, and operational guidance.
+This document provides comprehensive documentation of all services in the saas-codex Docker Compose stack, including APIs, configuration, testing procedures, and operational guidance.
+
+## Revision history
+
+- 2026-01-18: Added enterprise Chat UI, message persistence, multi-runner foundations
+- 2026-02-06: Added file upload/browser/download features and RBAC placeholder tables
 
 ---
 
@@ -866,17 +871,37 @@ curl http://localhost:9108/usage
 ### Migrations
 
 ```bash
-cd backend
+# Run migrations (inside backend container)
+docker compose exec backend alembic upgrade head
 
-# Run migrations
-alembic upgrade head
+# Stamp database version (when tables exist but alembic_version is empty)
+# Example: stamp to the latest known revision
+docker compose exec backend alembic stamp head
 
-# Create new migration
-alembic revision --autogenerate -m "description"
+# Create new migration (run inside backend container)
+docker compose exec backend alembic revision --autogenerate -m "description"
 
-# Rollback
-alembic downgrade -1
+# Roll back one migration
+docker compose exec backend alembic downgrade -1
+
+# Check current revision
+docker compose exec backend alembic current
 ```
+
+#### Migration notes (v0.5.0 file management / RBAC)
+
+- Migration file:
+  - `backend/alembic/versions/003_add_rbac_tables.py`
+- If file upload endpoints crash on startup with:
+  - `Form data requires "python-multipart" to be installed`
+  then ensure `python-multipart` is included in `backend/requirements.txt` and rebuild:
+  - `docker compose build backend && docker compose up -d backend`
+- If alembic fails with:
+  - `No config file 'alembic.ini' found`
+  ensure `backend/Dockerfile` copies `alembic.ini` and the `alembic/` directory into the image, then rebuild backend.
+- If migrations fail with duplicate-table errors (tables already exist):
+  - stamp to the appropriate revision and retry
+  - e.g. `docker compose exec backend alembic stamp 003`
 
 ---
 

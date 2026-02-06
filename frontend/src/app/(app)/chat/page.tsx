@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useAppContext } from "@/contexts/AppContext";
+import { FileBrowser } from "@/components/workspace";
 
 type RunnerType = "codex" | "claude";
 
@@ -50,6 +51,7 @@ function ChatPageContent() {
   const [inputValue, setInputValue] = useState("");
   const [streamingContent, setStreamingContent] = useState("");
   const [initialized, setInitialized] = useState(false);
+  const [showFilesPanel, setShowFilesPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -477,6 +479,26 @@ function ChatPageContent() {
             </select>
           </div>
         )}
+
+        {/* Files Panel Toggle */}
+        {selectedWorkspaceId && (
+          <div className="border-t border-zinc-200">
+            <button
+              onClick={() => setShowFilesPanel(!showFilesPanel)}
+              className="w-full p-3 flex items-center justify-between text-sm text-zinc-600 hover:bg-zinc-50"
+            >
+              <span className="flex items-center gap-2">
+                📁 Files
+              </span>
+              <span>{showFilesPanel ? "▼" : "▶"}</span>
+            </button>
+            {showFilesPanel && (
+              <div className="p-3 pt-0 max-h-64 overflow-y-auto">
+                <FileBrowser workspaceId={selectedWorkspaceId} compact={true} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Chat Area */}
@@ -501,9 +523,14 @@ function ChatPageContent() {
             )}
           </div>
           {status === "running" && (
-            <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 animate-pulse">
-              Thinking...
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+              </div>
+              <span className="text-xs text-blue-700">Agent is thinking...</span>
+            </div>
           )}
         </div>
 
@@ -521,7 +548,7 @@ function ChatPageContent() {
                 </p>
               </div>
             </div>
-          ) : messages.length === 0 && !streamingContent ? (
+          ) : messages.length === 0 && !streamingContent && status !== "running" ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="text-4xl mb-4">🚀</div>
@@ -530,6 +557,22 @@ function ChatPageContent() {
                 </h2>
                 <p className="text-sm text-zinc-500">
                   Type a message below to start the conversation.
+                </p>
+              </div>
+            </div>
+          ) : messages.length === 0 && status === "running" ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1 text-3xl mb-4">
+                  <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🤖</span>
+                  <span className="animate-bounce" style={{ animationDelay: "150ms" }}>💭</span>
+                  <span className="animate-bounce" style={{ animationDelay: "300ms" }}>⚡</span>
+                </div>
+                <h2 className="text-lg font-semibold text-zinc-700 mb-2">
+                  Agent is thinking...
+                </h2>
+                <p className="text-sm text-zinc-500">
+                  Processing your request. This may take a moment.
                 </p>
               </div>
             </div>
@@ -551,6 +594,16 @@ function ChatPageContent() {
                     isStreaming: true
                   }}
                 />
+              )}
+              {status === "running" && !streamingContent && (
+                <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  </div>
+                  <span className="text-sm text-zinc-600">Agent is working on your request...</span>
+                </div>
               )}
               <div ref={messagesEndRef} />
             </div>

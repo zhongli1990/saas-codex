@@ -130,16 +130,19 @@ Frontend API routes:
 
 ## 7. Future evolution
 
-- Persist sessions/runs in Postgres.
+- Persist sessions/runs in Postgres. ✅ (v0.2.0)
 - Add private repo access via GitHub App / deploy keys.
-- Add tenant context + auth.
+- Add tenant context + auth. ✅ (v0.4.0)
 - Add diff visualization and patch apply workflow.
+- **Local folder upload from browser** 
+- **Workspace file browser & download** 
+- **Multi-tenant RBAC with groups** 
 
 ## 8. v0.2.0 planned changes
 
 Planned scope for the next release is documented in:
-- `docs/Product_Requirements_v0.2.0.md`
-- `docs/v0.2.0_Implementation_Plan.md`
+- `archive/Product_Requirements_v0.2.0_Archive.md`
+- `archive/v0.2.0_Implementation_Plan_Archive.md`
 
 ### 8.1 Multi-runner routing
 

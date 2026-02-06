@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAppContext } from "@/contexts/AppContext";
+import { FileBrowser, UploadModal } from "@/components/workspace";
 
 type RunnerType = "codex" | "claude";
 
@@ -79,7 +80,8 @@ function CodexPageContent() {
   const [folderNames, setFolderNames] = useState<Record<string, string>>({});
   const [repoUrl, setRepoUrl] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [viewMode, setViewMode] = useState<"transcript" | "raw">("transcript");
+  const [viewMode, setViewMode] = useState<"transcript" | "raw" | "files">("transcript");
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
@@ -535,6 +537,13 @@ function CodexPageContent() {
                 >
                   🔍 Scan
                 </button>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="text-xs text-green-600 hover:text-green-800"
+                  title="Upload local folder"
+                >
+                  📤 Upload
+                </button>
                 {selectedWorkspaceId && !showImportForm && (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
@@ -768,17 +777,48 @@ function CodexPageContent() {
               >
                 Raw Events
               </button>
+              <button
+                onClick={() => setViewMode("files")}
+                className={`px-2 py-1 text-xs rounded ${
+                  viewMode === "files"
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                📁 Files
+              </button>
             </div>
           </div>
 
-          {viewMode === "transcript" ? (
+          {viewMode === "files" ? (
+            <div className="flex-1 overflow-y-auto min-h-[520px] max-h-[600px] p-2 bg-zinc-50 rounded-md border border-zinc-200">
+              {selectedWorkspaceId ? (
+                <FileBrowser workspaceId={selectedWorkspaceId} />
+              ) : (
+                <div className="text-sm text-zinc-500 text-center py-8">
+                  Select a workspace to browse files.
+                </div>
+              )}
+            </div>
+          ) : viewMode === "transcript" ? (
             <div className="flex-1 overflow-y-auto min-h-[520px] max-h-[600px] space-y-4 p-2 bg-zinc-50 rounded-md border border-zinc-200">
-              {transcript.length === 0 ? (
+              {transcript.length === 0 && status !== "running" ? (
                 <div className="text-sm text-zinc-500 text-center py-8">
                   No messages yet. Run a prompt to see the transcript.
                 </div>
+              ) : transcript.length === 0 && status === "running" ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="flex items-center gap-1 text-2xl mb-3">
+                    <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🤖</span>
+                    <span className="animate-bounce" style={{ animationDelay: "150ms" }}>💭</span>
+                    <span className="animate-bounce" style={{ animationDelay: "300ms" }}>⚡</span>
+                  </div>
+                  <div className="text-sm text-zinc-600 font-medium">Agent is thinking...</div>
+                  <div className="text-xs text-zinc-400 mt-1">Processing your request</div>
+                </div>
               ) : (
-                transcript.map((msg, idx) => (
+                <>
+                {transcript.map((msg, idx) => (
                   <div
                     key={idx}
                     className={`rounded-lg p-3 ${
@@ -820,6 +860,18 @@ function CodexPageContent() {
                     )}
                   </div>
                 ))
+                }
+                {status === "running" && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg mr-8">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                    </div>
+                    <span className="text-sm text-blue-700">Agent is working...</span>
+                  </div>
+                )}
+                </>
               )}
               <div ref={transcriptEndRef} />
             </div>
@@ -916,6 +968,17 @@ function CodexPageContent() {
           </div>
         </div>
       )}
+
+      {/* Upload Modal */}
+      <UploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSuccess={(workspaceId) => {
+          fetchWorkspaces();
+          setSelectedWorkspaceId(workspaceId);
+          setShowUploadModal(false);
+        }}
+      />
     </div>
   );
 }

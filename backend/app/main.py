@@ -1171,3 +1171,190 @@ async def get_system_health(db: AsyncSession = Depends(get_db)) -> SystemHealthR
         services.append(ServiceHealthResponse(service="database", status="unhealthy", latency_ms=None))
     
     return SystemHealthResponse(services=services)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.5.0 File Operations API
+# ─────────────────────────────────────────────────────────────────────────────
+
+from fastapi import File, UploadFile, Form
+from fastapi.responses import FileResponse
+from .services import file_service
+
+
+class FileInfo(BaseModel):
+    name: str
+    path: str
+    type: str  # file or directory
+    size: Optional[int]
+    modified_at: str
+
+
+class FileListResponse(BaseModel):
+    workspace_id: str
+    current_path: str
+    parent_path: Optional[str]
+    items: list[FileInfo]
+
+
+class FileContentResponse(BaseModel):
+    name: str
+    path: str
+    type: str
+    size: int
+    modified_at: str
+    content: Optional[str]
+    content_type: str
+    is_binary: bool
+
+
+@app.get("/api/workspaces/{workspace_id}/files", response_model=FileListResponse)
+async def list_workspace_files(
+    workspace_id: str,
+    path: str = "/",
+    db: AsyncSession = Depends(get_db)
+) -> FileListResponse:
+    """List files and directories at a given path within a workspace."""
+    ws_repo = WorkspaceRepository(db)
+    ws = await ws_repo.get_by_id(uuid.UUID(workspace_id))
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    result = file_service.list_directory(ws.local_path, path)
+    
+    return FileListResponse(
+        workspace_id=workspace_id,
+        current_path=result["current_path"],
+        parent_path=result["parent_path"],
+        items=[FileInfo(**item) for item in result["items"]]
+    )
+
+
+@app.get("/api/workspaces/{workspace_id}/files/view", response_model=FileContentResponse)
+async def view_workspace_file(
+    workspace_id: str,
+    path: str,
+    db: AsyncSession = Depends(get_db)
+) -> FileContentResponse:
+    """View file content for text-based files."""
+    ws_repo = WorkspaceRepository(db)
+    ws = await ws_repo.get_by_id(uuid.UUID(workspace_id))
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    result = file_service.get_file_content(ws.local_path, path)
+    
+    return FileContentResponse(**result)
+
+
+@app.get("/api/workspaces/{workspace_id}/files/download")
+async def download_workspace_file(
+    workspace_id: str,
+    path: str,
+    db: AsyncSession = Depends(get_db)
+) -> FileResponse:
+    """Download a single file from workspace."""
+    ws_repo = WorkspaceRepository(db)
+    ws = await ws_repo.get_by_id(uuid.UUID(workspace_id))
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    file_path, filename = file_service.get_file_for_download(ws.local_path, path)
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type="application/octet-stream"
+    )
+
+
+@app.get("/api/workspaces/{workspace_id}/files/download-zip")
+async def download_workspace_folder_zip(
+    workspace_id: str,
+    path: str = "/",
+    db: AsyncSession = Depends(get_db)
+) -> StreamingResponse:
+    """Download a folder as a ZIP archive."""
+    ws_repo = WorkspaceRepository(db)
+    ws = await ws_repo.get_by_id(uuid.UUID(workspace_id))
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    buffer, filename = file_service.create_zip_from_directory(ws.local_path, path)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@app.post("/api/workspaces/{workspace_id}/files/upload")
+async def upload_file_to_workspace(
+    workspace_id: str,
+    path: str = Form("/"),
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+) -> FileInfo:
+    """Upload a file to a workspace directory."""
+    ws_repo = WorkspaceRepository(db)
+    ws = await ws_repo.get_by_id(uuid.UUID(workspace_id))
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    content = await file.read()
+    result = file_service.save_uploaded_file(ws.local_path, path, file.filename, content)
+    
+    return FileInfo(**result)
+
+
+@app.post("/api/workspaces/upload", response_model=WorkspaceResponse)
+async def upload_workspace(
+    file: UploadFile = File(...),
+    display_name: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+) -> WorkspaceResponse:
+    """
+    Upload a zipped folder as a new workspace.
+    
+    - Maximum size: 1GB
+    - Extracts to /workspaces/{workspace_id}/repo/
+    - Registers with source_type="upload"
+    """
+    # Read file content
+    content = await file.read()
+    
+    # Validate size
+    if len(content) > file_service.MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Upload too large. Maximum size: {file_service.MAX_UPLOAD_SIZE // 1024 // 1024 // 1024}GB"
+        )
+    
+    # Generate workspace ID and path
+    workspace_id = str(uuid.uuid4())
+    local_path = _workspace_dir_for_id(workspace_id)
+    local_path = _ensure_under_workspaces_root(local_path)
+    
+    # Extract ZIP
+    file_count = file_service.extract_uploaded_workspace(content, local_path)
+    
+    # Create workspace record
+    repo = WorkspaceRepository(db)
+    source_uri = f"upload://{display_name}"
+    
+    workspace = await repo.create(
+        source_type="upload",
+        source_uri=source_uri,
+        display_name=display_name,
+        local_path=local_path
+    )
+    
+    return WorkspaceResponse(
+        workspace_id=str(workspace.id),
+        display_name=workspace.display_name,
+        source_type=workspace.source_type,
+        source_uri=workspace.source_uri,
+        local_path=workspace.local_path,
+        created_at=_format_datetime(workspace.created_at)
+    )

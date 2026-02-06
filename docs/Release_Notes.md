@@ -1,5 +1,97 @@
 # Release Notes
 
+## v0.5.0 — File Upload & Browser (Feb 6, 2026)
+
+Release name: **file management**
+
+### Highlights
+
+- Upload local folders directly from browser to create workspaces
+- Browse, view, and download workspace files
+- RBAC model for multi-tenant file access
+
+### Features
+
+- **Local Folder Upload**
+  - 📤 Upload button in Agents Tab workspace panel
+  - Browser-side ZIP compression using JSZip (up to 1GB)
+  - Automatic workspace registration after upload
+
+- **File Browser & Download**
+  - 📁 Files tab in Agents Tab Output panel
+  - 📁 Files panel in Chat UI sidebar
+  - Directory navigation with breadcrumbs
+  - In-browser file viewing (text, code, markdown)
+  - Single file download
+  - Folder download as ZIP
+
+- **Backend API Endpoints**
+  - `GET /api/workspaces/{id}/files` - List directory contents
+  - `GET /api/workspaces/{id}/files/view` - View file content
+  - `GET /api/workspaces/{id}/files/download` - Download single file
+  - `GET /api/workspaces/{id}/files/download-zip` - Download folder as ZIP
+  - `POST /api/workspaces/{id}/files/upload` - Upload file to workspace
+  - `POST /api/workspaces/upload` - Upload zipped folder as new workspace
+
+- **RBAC Enhancements**
+  - New tables: `tenants`, `groups`, `user_groups`, `workspace_access`
+  - Multi-tenant model for NHS Trust organizations
+  - Workspace ownership tracking (`owner_id`)
+
+See `File_Management_Design.md` and `File_Management_Requirements.md` for current specs.
+
+### Dependencies Added
+
+- `jszip` (frontend) - Browser-side ZIP compression
+- `python-multipart` (backend) - File upload support
+
+---
+
+## v0.4.0 — Authentication & RBAC (Jan 19, 2026)
+
+Release name: **auth foundation**
+
+### Highlights
+
+- User authentication with JWT tokens
+- Role-based access control (admin/user)
+- Simplified Agents workflow
+
+### Features
+
+- Login/logout with email/password
+- Protected routes requiring authentication
+- Admin user management
+- Workspace removal with confirmation
+- Codex skip git trust check for local folders
+
+---
+
+## v0.3.0 — UI Tab Uplift (Jan 18, 2026)
+
+Release name: **dashboard uplift**
+
+### Highlights
+
+- Dashboard, Projects, Settings tabs redesigned
+- Dark mode support
+- Renamed Codex to Agents
+
+---
+
+## v0.2.0 — Multi-Runner & Chat UI (Jan 2026)
+
+Release name: **multi-runner**
+
+### Highlights
+
+- Support for multiple AI runners (Codex + Claude)
+- Enterprise Chat UI with message persistence
+- Workspace registry with local folder scan/import
+- Real-time workspace sync
+
+---
+
 ## v0.1.0 — Initial Demo
 
 Release name: **initial demo**
