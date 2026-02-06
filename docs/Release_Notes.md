@@ -1,6 +1,6 @@
 # Release Notes
 
-## v0.5.0 — File Upload & Browser (Feb 6, 2026)
+## v0.5.1 — File Upload & Browser (Feb 6, 2026)
 
 Release name: **file management**
 

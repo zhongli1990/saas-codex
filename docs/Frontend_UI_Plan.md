@@ -159,7 +159,7 @@ Acceptance criteria:
 
 ## Progress log
 
-### 2026-02-06 (v0.5.0 Complete)
+### 2026-02-06 (v0.5.1 Complete)
 
 - Created `File_Management_Design.md` with full technical specification
 - Created `File_Management_Requirements.md` with feature requirements
