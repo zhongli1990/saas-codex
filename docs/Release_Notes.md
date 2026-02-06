@@ -9,6 +9,7 @@ Release name: **file management**
 - Upload local folders directly from browser to create workspaces
 - Browse, view, and download workspace files
 - RBAC model for multi-tenant file access
+- Documented AWS/production DB migration recovery steps for `users.tenant_id` / missing `alembic_version` (see `Service_Guide.md` -> Migrations)
 
 ### Features
 

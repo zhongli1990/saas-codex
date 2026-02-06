@@ -888,6 +888,60 @@ docker compose exec backend alembic downgrade -1
 docker compose exec backend alembic current
 ```
 
+#### AWS / production recovery: `users.tenant_id` missing and no `alembic_version` table
+
+Symptoms:
+- Backend crashes with: `column users.tenant_id does not exist`
+- `select * from alembic_version;` fails with: `relation "alembic_version" does not exist`
+
+This usually means the database tables exist (including RBAC tables) but Alembic tracking and/or a few columns were not applied. The fastest recovery is:
+
+```bash
+# 1) Inspect current schema
+docker compose exec postgres psql -U saas -d saas -c "\\dt"
+docker compose exec postgres psql -U saas -d saas -c "\\d users"
+docker compose exec postgres psql -U saas -d saas -c "\\d workspaces"
+
+# 2) Add missing columns (idempotent)
+docker compose exec postgres psql -U saas -d saas -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id uuid;"
+docker compose exec postgres psql -U saas -d saas -c "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS owner_id uuid;"
+
+# 3) Add missing foreign keys (Postgres does NOT support: ADD CONSTRAINT IF NOT EXISTS)
+docker compose exec postgres psql -U saas -d saas -c "
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='users_tenant_id_fkey') THEN
+    ALTER TABLE users ADD CONSTRAINT users_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id);
+  END IF;
+END
+\$\$;
+"
+
+docker compose exec postgres psql -U saas -d saas -c "
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='workspaces_owner_id_fkey') THEN
+    ALTER TABLE workspaces ADD CONSTRAINT workspaces_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id);
+  END IF;
+END
+\$\$;
+"
+
+# 4) Add indexes
+docker compose exec postgres psql -U saas -d saas -c "CREATE INDEX IF NOT EXISTS ix_user_tenant ON users(tenant_id);"
+docker compose exec postgres psql -U saas -d saas -c "CREATE INDEX IF NOT EXISTS ix_workspace_owner ON workspaces(owner_id);"
+
+# 5) Recreate Alembic tracking and stamp to the RBAC migration (003)
+docker compose exec postgres psql -U saas -d saas -c "CREATE TABLE IF NOT EXISTS alembic_version (version_num varchar(32) NOT NULL PRIMARY KEY);"
+docker compose exec postgres psql -U saas -d saas -c "TRUNCATE alembic_version;"
+docker compose exec postgres psql -U saas -d saas -c "INSERT INTO alembic_version(version_num) VALUES ('003');"
+
+# 6) Restart backend
+docker compose up -d backend
+docker compose logs -f backend
+"
+```
+
 #### Migration notes (v0.5.0 file management / RBAC)
 
 - Migration file:
