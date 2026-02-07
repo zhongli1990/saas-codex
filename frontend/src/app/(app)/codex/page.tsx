@@ -153,15 +153,12 @@ function CodexPageContent() {
   useEffect(() => {
     if (sessionId) {
       fetchRuns(sessionId);
-      // Update runner type to match the selected session
-      const session = sessions.find(s => s.session_id === sessionId);
-      if (session) {
-        setRunnerType(session.runner_type);
-      }
+      // Note: Runner type is set explicitly in onContinueSession, not here
+      // This prevents overwriting user's dropdown selection on page load
     } else {
       setRuns([]);
     }
-  }, [sessionId, sessions, fetchRuns, setRunnerType]);
+  }, [sessionId, fetchRuns]);
 
   const eventsText = useMemo(() => {
     return events

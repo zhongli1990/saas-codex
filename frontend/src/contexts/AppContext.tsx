@@ -1,8 +1,21 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 type RunnerType = "codex" | "claude";
+
+const RUNNER_TYPE_STORAGE_KEY = "saas-codex-runner-type";
+
+// Helper to get initial runner type from localStorage (runs synchronously on client)
+function getInitialRunnerType(): RunnerType {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem(RUNNER_TYPE_STORAGE_KEY);
+    if (stored === "codex" || stored === "claude") {
+      return stored;
+    }
+  }
+  return "codex";
+}
 
 type Workspace = {
   workspace_id: string;
@@ -85,7 +98,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [runnerType, setRunnerType] = useState<RunnerType>("codex");
+  // Initialize from localStorage synchronously to avoid flash/race condition
+  const [runnerType, setRunnerTypeState] = useState<RunnerType>(getInitialRunnerType);
+  
+  // Persist runner type to localStorage
+  const setRunnerType = useCallback((type: RunnerType) => {
+    setRunnerTypeState(type);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(RUNNER_TYPE_STORAGE_KEY, type);
+    }
+  }, []);
   
   // Chat-specific state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
