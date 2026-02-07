@@ -21,6 +21,12 @@ type ChatMessage = {
     tool_name?: string;
     tool_input?: any;
     tool_output?: any;
+    tool_id?: string;
+    is_blocked?: boolean;
+    block_reason?: string;
+    skill_name?: string;
+    skill_scope?: string;
+    skill_description?: string;
   } | null;
   created_at: string;
   isStreaming?: boolean;
@@ -243,7 +249,7 @@ function ChatPageContent() {
               assistantContent = event.payload?.text || assistantContent;
               setStreamingContent(assistantContent);
             }
-            else if (eventType === "ui.tool.call") {
+            else if (eventType === "ui.tool.call" || eventType === "ui.tool.call.start") {
               toolMessages.push({
                 message_id: `tool-${Date.now()}-${Math.random()}`,
                 session_id: sessionId,
@@ -252,7 +258,8 @@ function ChatPageContent() {
                 content: "",
                 metadata: {
                   tool_name: event.payload?.toolName || "tool",
-                  tool_input: event.payload?.input
+                  tool_input: event.payload?.input,
+                  tool_id: event.payload?.toolId
                 },
                 created_at: new Date().toISOString()
               });
@@ -264,6 +271,41 @@ function ChatPageContent() {
                   lastTool.metadata.tool_output = event.payload?.output;
                 }
               }
+            }
+            else if (eventType === "ui.tool.blocked") {
+              toolMessages.push({
+                message_id: `tool-blocked-${Date.now()}-${Math.random()}`,
+                session_id: sessionId,
+                run_id: run_id,
+                role: "tool",
+                content: `Blocked: ${event.payload?.reason}`,
+                metadata: {
+                  tool_name: event.payload?.toolName || "tool",
+                  tool_id: event.payload?.toolId,
+                  is_blocked: true,
+                  block_reason: event.payload?.reason
+                },
+                created_at: new Date().toISOString()
+              });
+            }
+            else if (eventType === "ui.skill.activated") {
+              toolMessages.push({
+                message_id: `skill-${Date.now()}-${Math.random()}`,
+                session_id: sessionId,
+                run_id: run_id,
+                role: "system",
+                content: `Skill activated: ${event.payload?.skillName}`,
+                metadata: {
+                  skill_name: event.payload?.skillName,
+                  skill_scope: event.payload?.scope,
+                  skill_description: event.payload?.description
+                },
+                created_at: new Date().toISOString()
+              });
+            }
+            else if (eventType === "ui.iteration") {
+              // Iteration events are informational, don't add to messages
+              // Could be used for progress indicator in UI
             }
             // === GENERIC STREAMING EVENTS ===
             else if (eventType === "response.output_text.delta" || eventType === "message.delta") {
