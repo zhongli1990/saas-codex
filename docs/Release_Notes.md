@@ -1,41 +1,73 @@
 # Release Notes
 
-## v0.6.0 — Claude Agent SDK Uplift (Feb 2026)
+## v0.6.0 — Claude Agent SDK Uplift (Feb 7, 2026)
 
 Release name: **agent sdk**
 
-**Status**: 🚧 In Progress  
-**Branch**: `feature/v0.6.0-claude-agent-sdk`
+**Status**: ✅ Released  
+**Tag**: `v0.6.0`
 
 ### Highlights
 
-- Migrate Claude runner to official `claude-agent-sdk`
+- Migrate Claude runner to official `claude-agent-sdk` (with Anthropic SDK fallback)
 - Claude Skill files (global + per-workspace)
-- Pre/post tool use hooks for validation
-- Expanded tool set (Grep, Glob, Edit, etc.)
-- True E2E streaming in UI
+- Pre/post tool use hooks for validation and security
+- True E2E streaming in UI with new event types
+- **No impact on existing OpenAI Codex runner** — both runners are plug-and-play interchangeable
 
 ### Features
 
 - **Claude Agent SDK Migration**
-  - Replace `anthropic` SDK with `claude-agent-sdk`
+  - Replace `anthropic` SDK with `claude-agent-sdk>=0.1.30`
+  - Fallback to basic Anthropic SDK if Agent SDK unavailable
   - Built-in agent loop with typed messages
   - Native streaming and session management
 
 - **Claude Skill Files**
-  - Global skills: `claude-runner/skills/*/SKILL.md`
-  - Workspace skills: `.claude/skills/*/SKILL.md`
-  - Skills: code-review, security-audit, healthcare-compliance
+  - Global skills: `claude-runner/skills/*/SKILL.md` (bundled in Docker image)
+  - Workspace skills: `{workspace}/.claude/skills/*/SKILL.md`
+  - Built-in skills: `code-review`, `security-audit`, `healthcare-compliance`
+  - YAML frontmatter for skill metadata (name, description, allowed-tools)
 
-- **Hooks Implementation**
-  - PreToolUse: Block dangerous commands, validate paths
-  - PostToolUse: Audit logging, result validation
+- **Pre/Post Tool Hooks**
+  - PreToolUse: Block dangerous bash commands (`rm -rf`, `sudo`, `curl | sh`, etc.)
+  - PreToolUse: Block path traversal (`..` in file paths)
+  - PostToolUse: Audit logging with timestamps
+  - Configurable via `ENABLE_HOOKS` environment variable
 
 - **UI/UX E2E Streaming**
-  - Character-by-character text streaming
-  - Tool call spinner while executing
-  - Collapsible tool input/output sections
-  - Skill activation badges
+  - New SSE events: `ui.skill.activated`, `ui.iteration`, `ui.tool.blocked`
+  - Skill activation badges in transcript (purple)
+  - Iteration progress bar
+  - Blocked tool highlighting (red)
+  - Collapsible tool input/output sections with max-height
+
+- **Authentication**
+  - API key authentication via `ANTHROPIC_API_KEY` (**recommended**)
+  - Cloud provider support: AWS Bedrock, Google Vertex AI, Microsoft Azure
+  - ⚠️ Browser login / OAuth **not supported** for third-party apps (Anthropic policy)
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `claude-runner/requirements.txt` | Added `claude-agent-sdk`, `pyyaml`, `anyio` |
+| `claude-runner/app/agent.py` | Rewritten with SDK support + fallback |
+| `claude-runner/app/skills.py` | New skill loader module |
+| `claude-runner/app/hooks.py` | New pre/post tool validation module |
+| `claude-runner/app/config.py` | Added `GLOBAL_SKILLS_PATH`, `ENABLE_HOOKS`, `MAX_AGENT_TURNS` |
+| `claude-runner/Dockerfile` | Copies skills directory, sets env vars |
+| `claude-runner/skills/*/SKILL.md` | 3 global skill files |
+| `frontend/.../codex/page.tsx` | Extended transcript types, new event handling |
+| `frontend/.../chat/page.tsx` | Extended metadata types, new event handling |
+
+### Regression Testing
+
+✅ **OpenAI Codex runner**: Completely untouched, no changes to `runner/src/server.ts`  
+✅ **Backend API**: No changes to runner dispatch logic  
+✅ **Frontend runner switching**: Works correctly for both `codex` and `claude`  
+✅ **SSE event handling**: Both event formats handled in transcript parsing  
+✅ **Docker build**: `docker compose build claude-runner` succeeds
 
 See `v0.6.0_Claude_Agent_SDK_Design.md` for full specification.
 

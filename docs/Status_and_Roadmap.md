@@ -690,17 +690,17 @@ See `File_Management_Design.md` for full specification.
 
 ---
 
-## v0.6.0 Features (In Progress)
+## v0.6.0 Features (✅ Released Feb 7, 2026)
 
-**Branch**: `feature/v0.6.0-claude-agent-sdk`
+**Tag**: `v0.6.0`
 
-### Claude Agent SDK Migration
-- Replace basic `anthropic` SDK with official `claude-agent-sdk`
+### Claude Agent SDK Migration ✅
+- Replaced basic `anthropic` SDK with official `claude-agent-sdk>=0.1.30`
+- Fallback to Anthropic SDK if Agent SDK unavailable
 - Built-in agent loop with typed messages
 - Native streaming support
-- Session management and subagents
 
-### Claude Skill Files
+### Claude Skill Files ✅
 - **Global Skills**: Platform-wide skills in `claude-runner/skills/`
   - `code-review` — Code quality and security review
   - `security-audit` — Vulnerability scanning
@@ -709,20 +709,39 @@ See `File_Management_Design.md` for full specification.
   - Uploaded with workspace or created by users
   - Override global skills with same name
 
-### Hooks Implementation
-- **PreToolUse**: Block dangerous commands, validate paths
-- **PostToolUse**: Audit logging, result validation
-- Configurable blocked patterns (rm -rf, sudo, etc.)
+### Hooks Implementation ✅
+- **PreToolUse**: Block dangerous commands (`rm -rf`, `sudo`, `curl | sh`)
+- **PreToolUse**: Block path traversal (`..` in file paths)
+- **PostToolUse**: Audit logging with timestamps
+- Configurable via `ENABLE_HOOKS` environment variable
 
-### Expanded Tool Set
-- Built-in: Read, Write, Edit, Bash, Grep, Glob, ListDir
-- Custom MCP tools for healthcare validation
-
-### UI/UX E2E Streaming
-- True character-by-character text streaming
-- Tool call spinner while executing
+### UI/UX E2E Streaming ✅
+- New SSE events: `ui.skill.activated`, `ui.iteration`, `ui.tool.blocked`
+- Skill activation badges (purple)
+- Iteration progress bar
+- Blocked tool highlighting (red)
 - Collapsible tool input/output sections
-- Skill activation badges
-- Agent iteration progress indicator
+
+### Authentication ✅
+- API key authentication via `ANTHROPIC_API_KEY` (recommended)
+- Cloud provider support: AWS Bedrock, Google Vertex AI, Microsoft Azure
+- ⚠️ Browser login / OAuth NOT supported for third-party apps (Anthropic policy)
+
+### Regression Testing ✅
+- OpenAI Codex runner: Completely untouched
+- Backend API: No changes to runner dispatch logic
+- Frontend runner switching: Works for both `codex` and `claude`
+- Both runners are plug-and-play interchangeable
 
 See `v0.6.0_Claude_Agent_SDK_Design.md` for full specification.
+
+---
+
+## v0.7.0 Roadmap (Planned)
+
+### Potential Features
+- **MCP Tool Integration**: Custom healthcare validation tools via MCP servers
+- **Expanded Tool Set**: Add Grep, Glob, Edit tools to Claude runner
+- **Skill Editor UI**: Create/edit skills from the frontend
+- **Skill Marketplace**: Share skills between workspaces
+- **Multi-tenant Skills**: Tenant-specific global skills

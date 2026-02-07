@@ -6,6 +6,7 @@ This document provides comprehensive documentation of all services in the saas-c
 
 - 2026-01-18: Added enterprise Chat UI, message persistence, multi-runner foundations
 - 2026-02-06: Added file upload/browser/download features and RBAC placeholder tables
+- 2026-02-07: **v0.6.0** - Claude Agent SDK migration, skill files, pre/post tool hooks, streaming UI improvements
 
 ---
 
@@ -63,9 +64,9 @@ This document provides comprehensive documentation of all services in the saas-c
 ┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────────┐
 │ Codex Runner :9102   │ │ Claude Runner :9104  │ │   PostgreSQL :9103   │
 │ (Node.js)            │ │ (Python/FastAPI)     │ │                      │
-│ - @openai/codex-sdk  │ │ - Anthropic SDK      │ │ - workspaces         │
-│ - SSE streaming      │ │ - Tool use agent     │ │ - sessions           │
-│ - Event buffering    │ │ - SSE streaming      │ │ - runs               │
+│ - @openai/codex-sdk  │ │ - Claude Agent SDK   │ │ - workspaces         │
+│ - SSE streaming      │ │ - Skill files        │ │ - sessions           │
+│ - Event buffering    │ │ - Pre/post hooks     │ │ - runs               │
 └──────────────────────┘ └──────────────────────┘ │ - run_events         │
                                                    └──────────────────────┘
               │
@@ -96,7 +97,7 @@ This document provides comprehensive documentation of all services in the saas-c
 | Frontend | Next.js 14 | 9100 | 3000 | ✅ Implemented |
 | Backend | FastAPI | 9101 | 8080 | ✅ Implemented |
 | Codex Runner | Node.js + Codex SDK | 9102 | 8081 | ✅ Implemented |
-| Claude Runner | Python + Anthropic SDK | 9104 | 8082 | ✅ Implemented |
+| Claude Runner | Python + Claude Agent SDK | 9104 | 8082 | ✅ v0.6.0 |
 | PostgreSQL | PostgreSQL 16 | 9103 | 5432 | ✅ Running |
 | Prompt Manager | FastAPI | 9105 | 8083 | ✅ Placeholder |
 | Evaluation | FastAPI | 9106 | 8084 | ✅ Placeholder |
@@ -507,15 +508,19 @@ curl -N http://localhost:9102/runs/{runId}/events
 **Technology Stack**:
 - Python 3.12
 - FastAPI
-- Anthropic SDK
+- Claude Agent SDK (v0.6.0+) with Anthropic SDK fallback
 - Uvicorn
+- PyYAML (for skill file parsing)
 
 **Key Files**:
 - `app/main.py` - FastAPI application
-- `app/agent.py` - Agent loop with tool use
+- `app/agent.py` - Agent loop with Claude Agent SDK integration
 - `app/tools.py` - Tool definitions and executors
 - `app/events.py` - Event envelope helpers
 - `app/config.py` - Configuration
+- `app/skills.py` - Skill file loader (v0.6.0)
+- `app/hooks.py` - Pre/post tool use hooks (v0.6.0)
+- `skills/` - Global skill files directory (v0.6.0)
 
 **Tools Available**:
 | Tool | Description |
@@ -525,18 +530,80 @@ curl -N http://localhost:9102/runs/{runId}/events
 | `list_files` | List directory contents |
 | `bash` | Execute bash command |
 
+**Claude Skill Files (v0.6.0)**:
+
+Skills are loaded from two locations:
+1. **Global skills**: `/app/skills/` (bundled in Docker image)
+2. **Workspace skills**: `{workspace}/.claude/skills/`
+
+Each skill folder contains a `SKILL.md` file with YAML frontmatter:
+```markdown
+---
+name: code-review
+description: Review code for quality and security
+allowed-tools: Read, Grep, Glob
+---
+
+# Instructions for the skill...
+```
+
+**Built-in Global Skills**:
+| Skill | Description |
+|-------|-------------|
+| `code-review` | Review code for quality, security, and best practices |
+| `security-audit` | Scan for security vulnerabilities |
+| `healthcare-compliance` | Check NHS/healthcare data compliance |
+
+**Pre/Post Tool Hooks (v0.6.0)**:
+
+Hooks validate tool calls before execution:
+- **Blocked bash patterns**: `rm -rf`, `sudo`, `chmod 777`, `curl | sh`, etc.
+- **Path traversal protection**: Blocks `..` in file paths
+- **Audit logging**: All tool calls logged with timestamps
+
 **API Endpoints**:
-Same contract as Codex Runner:
+Same contract as Codex Runner (plug-and-play interchangeable):
 - `GET /health`
 - `POST /threads`
 - `POST /runs`
 - `GET /runs/{runId}/events` (SSE)
 
+**SSE Event Types (v0.6.0)**:
+| Event Type | Description |
+|------------|-------------|
+| `run.started` | Agent run initiated |
+| `ui.skill.activated` | Skill loaded and activated |
+| `ui.iteration` | Agent iteration progress |
+| `ui.message.user` | User prompt |
+| `ui.message.assistant.delta` | Streaming text chunk |
+| `ui.message.assistant.final` | Complete assistant message |
+| `ui.tool.call.start` | Tool invocation started |
+| `ui.tool.result` | Tool execution result |
+| `ui.tool.blocked` | Tool blocked by hooks |
+| `run.completed` | Agent run finished |
+| `error` | Error occurred |
+
 **Environment Variables**:
-- `ANTHROPIC_API_KEY` - Anthropic API key
+- `ANTHROPIC_API_KEY` - Anthropic API key (**required**)
 - `WORKSPACES_ROOT` - Workspace directory
 - `CLAUDE_MODEL` - Model to use (default: `claude-sonnet-4-20250514`)
 - `PORT` - Server port (default: `8082`)
+- `GLOBAL_SKILLS_PATH` - Path to global skills (default: `/app/skills`)
+- `ENABLE_HOOKS` - Enable pre/post tool hooks (default: `true`)
+- `MAX_AGENT_TURNS` - Maximum agent iterations (default: `20`)
+
+**Authentication (v0.6.0)**:
+
+The Claude Agent SDK supports the following authentication methods:
+
+| Method | Environment Variable | Notes |
+|--------|---------------------|-------|
+| Anthropic API Key | `ANTHROPIC_API_KEY` | **Recommended** |
+| Amazon Bedrock | `CLAUDE_CODE_USE_BEDROCK=1` | + AWS credentials |
+| Google Vertex AI | `CLAUDE_CODE_USE_VERTEX=1` | + GCP credentials |
+| Microsoft Azure | `CLAUDE_CODE_USE_FOUNDRY=1` | + Azure credentials |
+
+> ⚠️ **Note**: Browser login / OAuth is **not supported** for third-party applications. Anthropic explicitly prohibits offering claude.ai login for products built on the Claude Agent SDK without prior approval.
 
 **Testing**:
 ```bash
