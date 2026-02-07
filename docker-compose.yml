@@ -39,9 +39,27 @@ services:
     build:
       context: ./claude-runner
     environment:
+      # Anthropic API Key (recommended)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # AWS Bedrock (optional - uncomment CLAUDE_CODE_USE_BEDROCK in .env)
+      CLAUDE_CODE_USE_BEDROCK: ${CLAUDE_CODE_USE_BEDROCK:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      # Google Vertex AI (optional)
+      CLAUDE_CODE_USE_VERTEX: ${CLAUDE_CODE_USE_VERTEX:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      # Microsoft Azure (optional)
+      CLAUDE_CODE_USE_FOUNDRY: ${CLAUDE_CODE_USE_FOUNDRY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      # Runner config
       WORKSPACES_ROOT: /workspaces
       PORT: 8082
+      GLOBAL_SKILLS_PATH: /app/skills
+      ENABLE_HOOKS: "true"
+      MAX_AGENT_TURNS: "20"
     volumes:
       - ./workspaces:/workspaces
     ports:
