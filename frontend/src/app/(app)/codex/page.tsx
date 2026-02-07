@@ -15,11 +15,16 @@ type EventLine = {
 };
 
 type TranscriptMessage = {
-  role: "user" | "assistant" | "tool";
+  role: "user" | "assistant" | "tool" | "system";
   content: string;
   toolName?: string;
   toolInput?: any;
   toolOutput?: any;
+  toolId?: string;
+  isBlocked?: boolean;
+  skillName?: string;
+  skillScope?: string;
+  iteration?: { current: number; max: number };
 };
 
 type Run = {
@@ -205,11 +210,12 @@ function CodexPageContent() {
       } else if (eventType === "ui.message.assistant.final") {
         messages.push({ role: "assistant", content: data.payload?.text || currentAssistantText });
         currentAssistantText = "";
-      } else if (eventType === "ui.tool.call") {
+      } else if (eventType === "ui.tool.call" || eventType === "ui.tool.call.start") {
         messages.push({
           role: "tool",
           content: `Calling ${data.payload?.toolName}`,
           toolName: data.payload?.toolName,
+          toolId: data.payload?.toolId,
           toolInput: data.payload?.input
         });
       } else if (eventType === "ui.tool.result") {
@@ -217,7 +223,29 @@ function CodexPageContent() {
           role: "tool",
           content: `Result from ${data.payload?.toolName}`,
           toolName: data.payload?.toolName,
+          toolId: data.payload?.toolId,
           toolOutput: data.payload?.output
+        });
+      } else if (eventType === "ui.tool.blocked") {
+        messages.push({
+          role: "tool",
+          content: `Blocked: ${data.payload?.reason}`,
+          toolName: data.payload?.toolName,
+          toolId: data.payload?.toolId,
+          isBlocked: true
+        });
+      } else if (eventType === "ui.skill.activated") {
+        messages.push({
+          role: "system",
+          content: `Skill activated: ${data.payload?.skillName}`,
+          skillName: data.payload?.skillName,
+          skillScope: data.payload?.scope
+        });
+      } else if (eventType === "ui.iteration") {
+        messages.push({
+          role: "system",
+          content: `Iteration ${data.payload?.current}/${data.payload?.max}`,
+          iteration: { current: data.payload?.current, max: data.payload?.max }
         });
       }
     }
@@ -825,38 +853,88 @@ function CodexPageContent() {
                       msg.role === "user"
                         ? "bg-blue-50 border border-blue-200 ml-8"
                         : msg.role === "tool"
-                        ? "bg-amber-50 border border-amber-200 mx-4"
+                        ? msg.isBlocked
+                          ? "bg-red-50 border border-red-200 mx-4"
+                          : "bg-amber-50 border border-amber-200 mx-4"
+                        : msg.role === "system"
+                        ? "bg-purple-50 border border-purple-200 mx-4 py-2"
                         : "bg-white border border-zinc-200 mr-8"
                     }`}
                   >
-                    <div className="text-xs font-medium text-zinc-500 mb-1">
-                      {msg.role === "user" ? "You" : msg.role === "tool" ? `Tool: ${msg.toolName}` : "Assistant"}
-                    </div>
-                    {msg.role === "tool" ? (
-                      <div className="text-xs font-mono">
-                        {msg.toolInput && (
-                          <details className="mb-2">
-                            <summary className="cursor-pointer text-amber-700">Input</summary>
-                            <pre className="mt-1 p-2 bg-amber-100 rounded overflow-x-auto">
-                              {JSON.stringify(msg.toolInput, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                        {msg.toolOutput && (
-                          <details>
-                            <summary className="cursor-pointer text-amber-700">Output</summary>
-                            <pre className="mt-1 p-2 bg-amber-100 rounded overflow-x-auto">
-                              {JSON.stringify(msg.toolOutput, null, 2)}
-                            </pre>
-                          </details>
+                    {msg.role === "system" ? (
+                      <div className="flex items-center gap-2 text-xs">
+                        {msg.skillName ? (
+                          <>
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">
+                              🎯 {msg.skillName}
+                            </span>
+                            <span className="text-purple-600">
+                              {msg.skillScope === "workspace" ? "(workspace)" : "(global)"}
+                            </span>
+                          </>
+                        ) : msg.iteration ? (
+                          <>
+                            <span className="text-purple-600">
+                              🔄 Iteration {msg.iteration.current}/{msg.iteration.max}
+                            </span>
+                            <div className="flex-1 h-1 bg-purple-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-purple-500 transition-all duration-300"
+                                style={{ width: `${(msg.iteration.current / msg.iteration.max) * 100}%` }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-purple-600">{msg.content}</span>
                         )}
                       </div>
                     ) : (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="text-xs font-medium text-zinc-500 mb-1">
+                          {msg.role === "user" ? "You" : msg.role === "tool" ? (
+                            <span className="flex items-center gap-2">
+                              {msg.isBlocked ? "🚫" : "🔧"} Tool: {msg.toolName}
+                              {msg.isBlocked && <span className="text-red-600 font-semibold">BLOCKED</span>}
+                            </span>
+                          ) : "Assistant"}
+                        </div>
+                        {msg.role === "tool" ? (
+                          <div className="text-xs font-mono">
+                            {msg.isBlocked ? (
+                              <div className="text-red-700 font-medium">{msg.content}</div>
+                            ) : (
+                              <>
+                                {msg.toolInput && (
+                                  <details className="mb-2">
+                                    <summary className="cursor-pointer text-amber-700 flex items-center gap-1">
+                                      <span>▶</span> Input
+                                    </summary>
+                                    <pre className="mt-1 p-2 bg-amber-100 rounded overflow-x-auto max-h-40">
+                                      {JSON.stringify(msg.toolInput, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                                {msg.toolOutput && (
+                                  <details>
+                                    <summary className="cursor-pointer text-amber-700 flex items-center gap-1">
+                                      <span>▶</span> Output
+                                    </summary>
+                                    <pre className="mt-1 p-2 bg-amber-100 rounded overflow-x-auto max-h-40">
+                                      {JSON.stringify(msg.toolOutput, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))

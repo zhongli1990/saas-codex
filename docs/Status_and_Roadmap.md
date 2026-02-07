@@ -649,8 +649,9 @@ User: "Generate a test plan for the new discharge notification"
 | v0.4.1 | Jan 19, 2026 | Simplified Agents workflow, Remove Workspace | ✅ Complete |
 | v0.4.2 | Jan 19, 2026 | Codex skip git trust check | ✅ Complete |
 | v0.5.1 | Feb 6, 2026 | Local folder upload, File browser & download, RBAC groups | ✅ Complete |
-| v0.6.0 | Mar 2026 | Clinical user workflows, task wizards | 🔜 Planned |
-| v0.7.0 | Q2 2026 | Full lifecycle automation, multi-agent | 🔜 Planned |
+| v0.6.0 | Feb 2026 | Claude Agent SDK, Skills, Hooks, E2E Streaming | 🚧 In Progress |
+| v0.7.0 | Q2 2026 | Clinical user workflows, task wizards | 🔜 Planned |
+| v0.8.0 | Q2 2026 | Full lifecycle automation, multi-agent | 🔜 Planned |
 
 ---
 
@@ -686,3 +687,42 @@ User: "Generate a test plan for the new discharge notification"
 - Added `owner_id` to workspaces, `tenant_id` to users
 
 See `File_Management_Design.md` for full specification.
+
+---
+
+## v0.6.0 Features (In Progress)
+
+**Branch**: `feature/v0.6.0-claude-agent-sdk`
+
+### Claude Agent SDK Migration
+- Replace basic `anthropic` SDK with official `claude-agent-sdk`
+- Built-in agent loop with typed messages
+- Native streaming support
+- Session management and subagents
+
+### Claude Skill Files
+- **Global Skills**: Platform-wide skills in `claude-runner/skills/`
+  - `code-review` — Code quality and security review
+  - `security-audit` — Vulnerability scanning
+  - `healthcare-compliance` — NHS data compliance checks
+- **Workspace Skills**: Per-project skills in `.claude/skills/`
+  - Uploaded with workspace or created by users
+  - Override global skills with same name
+
+### Hooks Implementation
+- **PreToolUse**: Block dangerous commands, validate paths
+- **PostToolUse**: Audit logging, result validation
+- Configurable blocked patterns (rm -rf, sudo, etc.)
+
+### Expanded Tool Set
+- Built-in: Read, Write, Edit, Bash, Grep, Glob, ListDir
+- Custom MCP tools for healthcare validation
+
+### UI/UX E2E Streaming
+- True character-by-character text streaming
+- Tool call spinner while executing
+- Collapsible tool input/output sections
+- Skill activation badges
+- Agent iteration progress indicator
+
+See `v0.6.0_Claude_Agent_SDK_Design.md` for full specification.
