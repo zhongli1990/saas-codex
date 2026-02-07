@@ -1,5 +1,30 @@
 # Release Notes
 
+## v0.6.1 — Runner Selection Fix (Feb 7, 2026)
+
+Release name: **hotfix**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.1`
+
+### Bug Fix
+
+**Issue**: When user selected "Claude Agent" from the dropdown and created a session, the session was always stored as `codex` in the database, causing all requests to go to the OpenAI Codex runner instead of Claude.
+
+**Root Cause**: `useState` initialized `runnerType` to `"codex"` and localStorage was loaded asynchronously via `useEffect`, causing a race condition where the session was created before the localStorage value was applied.
+
+**Fix**:
+- `AppContext.tsx`: Use lazy initialization with `getInitialRunnerType()` to load from localStorage synchronously during initial render
+- `codex/page.tsx`: Remove `useEffect` that auto-synced runner type from session (was overwriting user's dropdown selection)
+
+### Verified
+
+- ✅ Database correctly stores `runner_type: 'claude'` for Claude sessions
+- ✅ Claude-runner logs show `POST /threads`, `POST /runs`, `GET /runs/.../events`
+- ✅ E2E test successful with Claude response ("I am Claude - specifically Claude Sonnet 4.5, built by Anthropic")
+
+---
+
 ## v0.6.0 — Claude Agent SDK Uplift (Feb 7, 2026)
 
 Release name: **agent sdk**
