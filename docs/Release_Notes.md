@@ -1,5 +1,46 @@
 # Release Notes
 
+## v0.6.0 — Claude Agent SDK Uplift (Feb 2026)
+
+Release name: **agent sdk**
+
+**Status**: 🚧 In Progress  
+**Branch**: `feature/v0.6.0-claude-agent-sdk`
+
+### Highlights
+
+- Migrate Claude runner to official `claude-agent-sdk`
+- Claude Skill files (global + per-workspace)
+- Pre/post tool use hooks for validation
+- Expanded tool set (Grep, Glob, Edit, etc.)
+- True E2E streaming in UI
+
+### Features
+
+- **Claude Agent SDK Migration**
+  - Replace `anthropic` SDK with `claude-agent-sdk`
+  - Built-in agent loop with typed messages
+  - Native streaming and session management
+
+- **Claude Skill Files**
+  - Global skills: `claude-runner/skills/*/SKILL.md`
+  - Workspace skills: `.claude/skills/*/SKILL.md`
+  - Skills: code-review, security-audit, healthcare-compliance
+
+- **Hooks Implementation**
+  - PreToolUse: Block dangerous commands, validate paths
+  - PostToolUse: Audit logging, result validation
+
+- **UI/UX E2E Streaming**
+  - Character-by-character text streaming
+  - Tool call spinner while executing
+  - Collapsible tool input/output sections
+  - Skill activation badges
+
+See `v0.6.0_Claude_Agent_SDK_Design.md` for full specification.
+
+---
+
 ## v0.5.1 — File Upload & Browser (Feb 6, 2026)
 
 Release name: **file management**
