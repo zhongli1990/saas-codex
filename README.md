@@ -1,6 +1,11 @@
-# saas-codex
+# SaaS Codex
 
-saas-codex is a **SaaS agentic AI platform** for automated analysis and implementation of **healthcare integrations**.
+[![License: Dual](https://img.shields.io/badge/License-AGPL%20v3%20%2F%20Commercial-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.6.5-green.svg)](docs/Release_Notes.md)
+
+**SaaS Codex** is an enterprise AI agent platform for automated analysis and implementation of **healthcare integrations**.
+
+> **© 2026 Lightweight Integration Ltd, UK** — Dual licensed under AGPL-3.0 (community) and Commercial license. See [LICENSE](LICENSE) for details.
 
 The long-term vision is to provide an "integration engineering copilot" that can:
 - ingest integration repositories (FHIR / HL7 v2 / X12 / proprietary)
@@ -9,9 +14,18 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.4.2
+## Current Release: v0.6.5
 
-### v0.4.2 (Latest - Jan 19, 2026)
+### v0.6.5 (Latest - Feb 8, 2026)
+- **UI Enhancements**: New favicon, About modal, Settings/RBAC menu
+- **Skills Management UI**: Full CRUD for platform/tenant/project skills
+- **Hooks Configuration UI**: Security, audit, compliance hooks
+- **Claude Agent SDK**: Skills system with 10 platform skills
+- **RBAC Display**: Sample users, groups, permission matrix
+
+See [Release Notes](docs/Release_Notes.md) for full version history.
+
+### v0.4.2 (Jan 19, 2026)
 - **Codex Git Trust Check Disabled**: Supports running prompts in manually copied folders (`skipGitRepoCheck=true`)
 - **Workspace Button Order**: Import → Scan → Remove
 
@@ -194,15 +208,23 @@ alembic upgrade head
 
 ## Status
 
-- **v0.4.2 (current)**: Codex skip git trust check fix, workspace button order polish
-- **v0.4.1**: Simplified Agents workflow, Remove Workspace feature
-- **v0.4.0**: User authentication, RBAC, admin approval workflow
-- **v0.3.0**: Enterprise UI uplift, dark mode, Agents rename, favicon
-- **v0.2.6**: Click-to-load run history
-- **v0.2.5**: Shared app context, sidebar fix, thread recovery
-- **v0.2.4**: Enterprise Chat UI, message persistence, syntax highlighting
-- **v0.2.3**: Real-time workspace sync, cache bypass, orphan handling
-- **v0.2.2**: Local folder scan/import, database integration complete
-- **v0.2.1**: Transcript parsing fix, CSS fix, workspace auto-import
-- **v0.2.0**: Multi-runner, workspace registry, session management, transcript UI
-- **Roadmap**: v0.5.0 (multi-agent orchestration, clinical workflows)
+- **v0.6.5 (current)**: UI enhancements, About modal, Settings/RBAC menu
+- **v0.6.4**: Skills/Hooks Admin UI, RBAC middleware, Playwright tests
+- **v0.6.0**: Claude Agent SDK, Skills system, Pre/post hooks
+- **v0.5.x**: File upload/browser, RBAC tables
+- **v0.4.x**: User authentication, RBAC, admin approval workflow
+- **v0.3.0**: Enterprise UI uplift, dark mode
+- **v0.2.x**: Multi-runner, workspace registry, session management
+
+See [Release Notes](docs/Release_Notes.md) for complete version history.
+
+## License
+
+This project is dual-licensed:
+
+- **AGPL-3.0** for organizations with annual revenue below £250,000
+- **Commercial License** for organizations with revenue ≥ £250,000
+
+See [LICENSE](LICENSE) and [LICENSING_STRATEGY.md](docs/LICENSING_STRATEGY.md) for details.
+
+**© 2026 Lightweight Integration Ltd, UK**
