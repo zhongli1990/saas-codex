@@ -11,9 +11,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U saas -d saas"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   runner:
@@ -30,9 +31,10 @@ services:
       - "9102:8081"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   claude-runner:
@@ -66,9 +68,10 @@ services:
       - "9104:8082"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8082/health');\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   backend:
@@ -91,9 +94,10 @@ services:
       - claude-runner
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health');\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   frontend:
@@ -115,9 +119,10 @@ services:
       - "9105:8083"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8083/health');\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   evaluation:
@@ -130,9 +135,10 @@ services:
       - "9106:8084"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8084/health');\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   memory:
@@ -142,9 +148,10 @@ services:
       - "9107:8085"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8085/health');\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   llm-gateway:
@@ -157,9 +164,10 @@ services:
       - "9108:8086"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8086/health');\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 10m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
 volumes:
