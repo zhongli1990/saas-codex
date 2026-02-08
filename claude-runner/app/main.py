@@ -12,9 +12,11 @@ from pydantic import BaseModel
 from .config import WORKSPACES_ROOT, PORT
 from .agent import run_agent_loop
 from .events import make_event, format_sse
+from .api.skills_router import router as skills_router
 
 
 app = FastAPI()
+app.include_router(skills_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
