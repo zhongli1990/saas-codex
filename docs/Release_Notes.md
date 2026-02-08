@@ -1,5 +1,46 @@
 # Release Notes
 
+## v0.6.3 — Enterprise Skills Architecture (Feb 8, 2026)
+
+Release name: **skills architecture**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.3`
+
+### Highlights
+
+- Enterprise Skills Architecture Design for Virtual Software House
+- Role-based Skills for 7 enterprise roles
+- Three-tier Skills hierarchy (Platform > Tenant > Project)
+- 6 new professional deliverable Skills
+
+### New Skills
+
+| Skill | Role | Deliverable |
+|-------|------|-------------|
+| `sow-generator` | Sales | Statement of Work (NHS/Enterprise) |
+| `project-charter` | Project Manager | Project initiation documents |
+| `prd-writer` | Product Manager | Product Requirements Documents |
+| `architecture-design` | Architect | C4 diagrams, technical specs |
+| `test-strategy` | QA | Test strategy and planning |
+| `user-guide` | Support | End-user documentation |
+
+### Skills Architecture
+
+```
+Platform Skills (/app/skills/)
+    ↓ overridden by
+Tenant Skills ({workspace}/.claude/skills/)
+    ↓ overridden by
+Project Skills ({project}/.claude/skills/)
+```
+
+### Documentation
+
+- **`docs/Skills_Architecture_Design.md`** - Complete architecture design
+
+---
+
 ## v0.6.2 — Test Documentation & Enhanced Hooks (Feb 8, 2026)
 
 Release name: **testing & docs**
