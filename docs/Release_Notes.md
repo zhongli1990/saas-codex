@@ -1,5 +1,59 @@
 # Release Notes
 
+## v0.6.2 — Test Documentation & Enhanced Hooks (Feb 8, 2026)
+
+Release name: **testing & docs**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.2`
+
+### Highlights
+
+- Comprehensive test documentation with requirements, strategy, and user guide
+- Enhanced hooks system with structured placeholders for future extension
+- Automated E2E test script for v0.6.x feature verification
+- New `e2e-test` skill for automated testing
+
+### New Documentation
+
+- **`docs/Testing_Guide.md`** - Complete testing documentation:
+  - Test Requirements (13 functional + 4 non-functional)
+  - Test Strategy (Unit, Integration, E2E levels)
+  - Test Environment Setup
+  - Running Tests (automated + manual)
+  - Test Coverage Matrix
+  - Extending Tests Guide
+  - Test Reports
+
+### Enhanced Hooks System
+
+- Restructured `hooks.py` with categorized sections:
+  - Security Hooks (13 blocked bash patterns)
+  - Compliance Hooks (placeholder for data policies)
+  - Audit Hooks (basic logging implemented)
+  - Rate Limit Hooks (placeholder)
+  - Custom Hooks (placeholder for tenant-specific rules)
+- Added `chown root` to blocked patterns
+- Added audit logging to `post_tool_use_hook`
+
+### New Test Infrastructure
+
+- **`scripts/test_v061_features.sh`** - Automated test script
+- **`claude-runner/skills/e2e-test/SKILL.md`** - E2E test skill
+
+### Test Results
+
+```
+═══════════════════════════════════════════════════════════════
+  TEST SUMMARY
+═══════════════════════════════════════════════════════════════
+  Passed: 18
+  Failed: 0
+  ✅ ALL TESTS PASSED!
+```
+
+---
+
 ## v0.6.1 — Runner Selection Fix + Feature Verification (Feb 8, 2026)
 
 Release name: **hotfix + verification**

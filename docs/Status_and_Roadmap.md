@@ -690,6 +690,27 @@ See `File_Management_Design.md` for full specification.
 
 ---
 
+## v0.6.2 Features (✅ Released Feb 8, 2026)
+
+**Tag**: `v0.6.2`
+
+### Test Documentation & Enhanced Hooks ✅
+- Comprehensive `Testing_Guide.md` with requirements, strategy, and user guide
+- Enhanced `hooks.py` with structured placeholders for future extension
+- Automated `test_v061_features.sh` script (18 tests, all passing)
+- New `e2e-test` skill for automated testing
+
+### Test Coverage
+| Category | Tests | Status |
+|----------|-------|--------|
+| Service Health | 2 | ✅ |
+| Claude SDK | 2 | ✅ |
+| Skills System | 6 | ✅ |
+| Hooks Security | 6 | ✅ |
+| Database | 2 | ✅ |
+
+---
+
 ## v0.6.1 Features (✅ Released Feb 8, 2026)
 
 **Tag**: `v0.6.1`
