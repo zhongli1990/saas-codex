@@ -20,9 +20,22 @@ export default function TopNav() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
-      <div className="flex items-center gap-3">
-        <div className="text-sm font-semibold text-zinc-900">Codex Console</div>
-        <div className="hidden text-xs text-zinc-500 md:block">SaaS UI (Phase 1)</div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <div className="text-sm font-semibold text-zinc-900">Codex Console</div>
+          <div className="hidden text-xs text-zinc-500 md:block">SaaS UI</div>
+        </div>
+        <nav className="hidden md:flex items-center gap-4">
+          <Link href="/codex" className="text-sm text-zinc-600 hover:text-zinc-900">
+            Agent
+          </Link>
+          <Link href="/admin/skills" className="text-sm text-zinc-600 hover:text-zinc-900">
+            Skills
+          </Link>
+          <Link href="/admin/hooks" className="text-sm text-zinc-600 hover:text-zinc-900">
+            Hooks
+          </Link>
+        </nav>
       </div>
       <div className="flex items-center gap-3">
         {user ? (
