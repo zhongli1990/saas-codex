@@ -10,8 +10,8 @@ deleting a workspace properly cascades to sessions, runs, events, and messages.
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '004_add_cascade_deletes'
-down_revision = '003_add_rbac_tables'
+revision = '004'
+down_revision = '003'
 branch_labels = None
 depends_on = None
 
