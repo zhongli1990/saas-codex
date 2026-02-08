@@ -7,6 +7,7 @@ This document provides comprehensive documentation of all services in the saas-c
 - 2026-01-18: Added enterprise Chat UI, message persistence, multi-runner foundations
 - 2026-02-06: Added file upload/browser/download features and RBAC placeholder tables
 - 2026-02-07: **v0.6.0** - Claude Agent SDK migration, skill files, pre/post tool hooks, streaming UI improvements
+- 2026-02-08: **v0.6.4** - Skills/Hooks Admin UI, RBAC middleware, E2E tests with Playwright
 
 ---
 
@@ -132,6 +133,9 @@ This document provides comprehensive documentation of all services in the saas-c
 - Tool call/result display with collapsible sections
 - Auto-scroll on new content
 - Status indicators (idle, running, completed, error)
+- **Skills Management UI** (`/admin/skills`) - v0.6.4
+- **Hooks Configuration UI** (`/admin/hooks`) - v0.6.4
+- **Navigation bar** with Agent, Skills, Hooks links - v0.6.4
 
 **API Routes**:
 
@@ -144,6 +148,9 @@ This document provides comprehensive documentation of all services in the saas-c
 | `/api/workspaces/import` | POST | `backend/api/workspaces/import` |
 | `/api/workspaces/[workspaceId]` | GET | `backend/api/workspaces/{id}` |
 | `/api/workspaces/[workspaceId]/sessions` | GET | `backend/api/workspaces/{id}/sessions` |
+| `/api/claude/skills` | GET, POST | `claude-runner:8082/api/skills` |
+| `/api/claude/skills/[name]` | GET, PUT, DELETE | `claude-runner:8082/api/skills/{name}` |
+| `/api/claude/skills/[name]/reload` | POST | `claude-runner:8082/api/skills/{name}/reload` |
 
 **Environment Variables**:
 - `BACKEND_URL` - Backend service URL (default: `http://backend:8080`)
@@ -156,6 +163,15 @@ open http://localhost:9100
 
 # Verify API proxy
 curl http://localhost:9100/api/workspaces
+
+# Test Skills API (v0.6.4)
+curl http://localhost:9100/api/claude/skills
+
+# Test Skills Management UI
+open http://localhost:9100/admin/skills
+
+# Test Hooks Configuration UI
+open http://localhost:9100/admin/hooks
 ```
 
 ---
@@ -567,6 +583,48 @@ Same contract as Codex Runner (plug-and-play interchangeable):
 - `POST /threads`
 - `POST /runs`
 - `GET /runs/{runId}/events` (SSE)
+
+**Skills Management API (v0.6.4)**:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/skills` | GET | List all skills (optional `?scope=platform\|tenant\|project`) |
+| `/api/skills` | POST | Create new skill |
+| `/api/skills/{name}` | GET | Get skill detail with content |
+| `/api/skills/{name}` | PUT | Update skill content |
+| `/api/skills/{name}` | DELETE | Delete skill |
+| `/api/skills/{name}/reload` | POST | Reload skill in runner |
+| `/api/skills/{name}/versions` | GET | Get version history |
+
+```bash
+# List all skills
+curl http://localhost:9104/api/skills
+
+# Get skill detail
+curl "http://localhost:9104/api/skills/sow-generator?scope=platform"
+
+# Create new skill
+curl -X POST http://localhost:9104/api/skills \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-skill",
+    "description": "My custom skill",
+    "scope": "tenant",
+    "content": "# My Skill\n\n## Instructions\n..."
+  }'
+
+# Update skill
+curl -X PUT "http://localhost:9104/api/skills/my-skill?scope=tenant" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated description",
+    "content": "# Updated content",
+    "change_summary": "Fixed typo"
+  }'
+
+# Delete skill
+curl -X DELETE "http://localhost:9104/api/skills/my-skill?scope=tenant"
+```
 
 **SSE Event Types (v0.6.0)**:
 | Event Type | Description |
@@ -1037,7 +1095,7 @@ for port in 9100 9101 9102 9104 9105 9106 9107 9108; do
 done
 ```
 
-### 6.2 E2E Test Script
+### 6.2 E2E Test Script (Legacy Python)
 
 ```bash
 cd tests
@@ -1053,7 +1111,60 @@ python test_sse_streaming.py --runner claude
 python test_sse_streaming.py --runner both
 ```
 
-### 6.3 Manual E2E Test
+### 6.3 Playwright E2E Tests (v0.6.4)
+
+```bash
+# Install Playwright (first time only)
+cd tests
+npm install
+npx playwright install
+
+# Run all E2E tests
+npm test
+
+# Run Skills tests only
+npx playwright test skills.spec.ts
+
+# Run Hooks tests only
+npx playwright test hooks.spec.ts
+
+# Run with UI mode (interactive)
+npm run test:ui
+
+# Run headed (see browser)
+npm run test:headed
+```
+
+**Test Coverage**:
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `skills.spec.ts` | 12 | Skills Management UI + API |
+| `hooks.spec.ts` | 10 | Hooks Configuration UI |
+
+**Skills E2E Tests**:
+- Navigate to Skills Management page
+- List platform skills
+- Filter skills by scope
+- Search skills
+- View skill details
+- Open edit mode
+- Open new skill modal
+- Validate skill name format
+- API: List skills
+- API: Get skill detail
+- API: 404 for non-existent skill
+
+**Hooks E2E Tests**:
+- Navigate to Hooks Management page
+- Display security hooks section
+- Display audit hooks section
+- Open security hooks configuration
+- Display compliance hooks
+- Toggle compliance hook options
+- Display info box
+
+### 6.4 Manual E2E Test
 
 1. **Start services**:
    ```bash
@@ -1086,7 +1197,194 @@ python test_sse_streaming.py --runner both
    - Click: Raw Events tab
    - Verify: JSON events displayed
 
-### 6.4 SSE Streaming Test
+### 6.5 Skills & Hooks Manual Testing (v0.6.4)
+
+#### Skills Management UI Testing
+
+1. **Navigate to Skills Management**:
+   ```
+   http://localhost:9100/admin/skills
+   ```
+
+2. **Verify Skills List**:
+   - Should see 10 platform skills loaded
+   - Each skill shows: name, description, scope badge, version
+
+3. **Test Filtering**:
+   - Select "Platform" from scope dropdown
+   - Verify only platform skills shown
+
+4. **Test Search**:
+   - Type "sow" in search box
+   - Verify only `sow-generator` skill shown
+
+5. **View Skill Detail**:
+   - Click on `sow-generator`
+   - Verify: Description, SKILL.md content, supporting files displayed
+
+6. **Test Edit Mode**:
+   - Click "Edit" button
+   - Verify: Description input, Change Summary input, Content textarea appear
+   - Click "Cancel" to exit
+
+7. **Test Create Skill**:
+   - Click "+ New Skill" button
+   - Enter name: `test-skill`
+   - Enter description: `Test skill for manual testing`
+   - Select scope: `tenant`
+   - Click "Create Skill"
+   - Verify: New skill appears in list
+
+8. **Test Delete Skill**:
+   - Select the `test-skill` you created
+   - Click "Delete" button
+   - Confirm deletion
+   - Verify: Skill removed from list
+
+#### Hooks Configuration UI Testing
+
+1. **Navigate to Hooks Configuration**:
+   ```
+   http://localhost:9100/admin/hooks
+   ```
+
+2. **Verify Platform Hooks**:
+   - Security Hooks: Shows "ON" badge
+   - Audit Hooks: Shows "ON" badge
+
+3. **Test Security Hooks Configuration**:
+   - Click "Configure" on Security Hooks
+   - Verify: Blocked Bash Patterns list (13 patterns)
+   - Verify: Blocked Path Patterns list (2 patterns)
+
+4. **Test Tenant Compliance Hooks**:
+   - Click "Configure" on Compliance Hooks
+   - Toggle "Detect NHS numbers" checkbox
+   - Verify: Checkbox becomes checked
+
+5. **Verify Info Box**:
+   - Scroll to bottom
+   - Verify: "About Hooks" info box displayed
+
+### 6.6 Sales/Architect Scenario: Clinical Requirements Project (v0.6.4)
+
+This scenario demonstrates the full Skills lifecycle for a Sales person and Architect analyzing a customer project for new clinical requirements.
+
+#### Prerequisites
+- Docker Compose stack running (`docker compose up -d`)
+- A GitHub repository with clinical/healthcare code (or use a sample repo)
+
+#### Step 1: Import Customer Project Repository
+
+```bash
+# Via UI
+open http://localhost:9100/codex
+# Enter GitHub URL and click "Import"
+
+# Or via API
+curl -X POST http://localhost:9101/api/workspaces/import \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_type": "github",
+    "source_uri": "https://github.com/customer/clinical-portal.git",
+    "display_name": "NHS Clinical Portal"
+  }'
+```
+
+#### Step 2: Sales - Generate Statement of Work
+
+1. **Open Agent Console**: http://localhost:9100/codex
+2. **Select workspace**: "NHS Clinical Portal"
+3. **Select runner**: Claude Agent
+4. **Create session**: Click "Create Session"
+5. **Invoke SoW skill**:
+   ```
+   Analyze this clinical portal codebase and create a Statement of Work 
+   for NHS Trust Birmingham. The project scope is:
+   - Add new patient appointment booking feature
+   - Integrate with NHS Spine for patient demographics
+   - Implement DCB0129 clinical safety requirements
+   - 6-month timeline with 3 developers
+   ```
+6. **Expected output**:
+   - Claude activates `sow-generator` skill
+   - Analyzes codebase structure
+   - Generates structured SoW with NHS-specific sections
+
+#### Step 3: Architect - Create Architecture Design
+
+1. **Continue in same session** (or create new)
+2. **Invoke architecture skill**:
+   ```
+   Based on the codebase analysis, create an architecture design document 
+   for the new appointment booking feature. Include:
+   - C4 Context and Container diagrams
+   - Integration points with NHS Spine
+   - Security considerations for patient data
+   - API design for booking endpoints
+   ```
+3. **Expected output**:
+   - Claude activates `architecture-design` skill
+   - Generates C4 diagrams in Mermaid format
+   - Documents integration architecture
+   - Lists security controls
+
+#### Step 4: Verify Hooks Protection
+
+1. **Test security hook** (should be blocked):
+   ```
+   Run this command: rm -rf /workspaces
+   ```
+2. **Expected**: Claude's bash tool call is BLOCKED by security hooks
+3. **Verify in transcript**: Look for "BLOCKED" indicator
+
+#### Step 5: Review Skills Used
+
+1. **Open Skills Management**: http://localhost:9100/admin/skills
+2. **Verify skills invoked**:
+   - `sow-generator` - Sales & Pre-Sales
+   - `architecture-design` - Software Architecture
+3. **Check skill content** matches output format
+
+#### Step 6: Create Custom Project Skill (Optional)
+
+1. **Click "+ New Skill"**
+2. **Enter details**:
+   - Name: `nhs-clinical-review`
+   - Description: `Review clinical portal code for NHS compliance`
+   - Scope: `project`
+   - Content:
+     ```markdown
+     # NHS Clinical Code Review
+     
+     ## Quick Start
+     Review code for NHS Digital compliance including:
+     - DCB0129 Clinical Safety
+     - IG Toolkit requirements
+     - NHS Spine integration patterns
+     
+     ## Workflow
+     1. Scan for patient data handling
+     2. Check authentication/authorization
+     3. Verify audit logging
+     4. Review error handling for clinical context
+     ```
+3. **Click "Create Skill"**
+4. **Test in Agent Console**:
+   ```
+   Review this codebase for NHS clinical compliance
+   ```
+
+#### Expected Outcomes
+
+| Step | Skill | Output |
+|------|-------|--------|
+| 2 | `sow-generator` | Structured SoW document |
+| 3 | `architecture-design` | C4 diagrams + API design |
+| 4 | Security hooks | Blocked dangerous command |
+| 6 | Custom skill | NHS compliance report |
+
+### 6.7 SSE Streaming Test
 
 ```bash
 # Direct runner test

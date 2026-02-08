@@ -2,7 +2,7 @@
 
 ## Enterprise SaaS Platform - Skills Management
 
-**Version**: v0.6.3  
+**Version**: v0.6.4  
 **Last Updated**: Feb 8, 2026
 
 ---
@@ -79,13 +79,26 @@ In the UI transcript, look for:
 
 ## 2. Skills RBAC Management
 
-### 2.1 Current State (v0.6.3)
+### 2.1 Current State (v0.6.4)
 
-**⚠️ Skills RBAC is NOT YET IMPLEMENTED**
+**✅ Skills Management UI IMPLEMENTED**
 
-Currently, Skills are:
-- **Platform Skills**: Bundled in Docker image, read-only
-- **Workspace Skills**: Uploaded with workspace files
+As of v0.6.4, Skills can be managed via:
+- **Admin UI**: http://localhost:9100/admin/skills
+- **API**: http://localhost:9104/api/skills
+
+**Features**:
+- List all platform/tenant/project skills
+- View skill details and SKILL.md content
+- Create new skills with name validation
+- Edit skills with version tracking
+- Delete skills with confirmation
+- Reload skills in runner
+
+**Storage**:
+- **Platform Skills**: `/app/skills/` (Docker image)
+- **Tenant Skills**: `/workspaces/{tenant}/.claude/skills/`
+- **Project Skills**: `/workspaces/{tenant}/{project}/.claude/skills/`
 
 ### 2.2 Proposed RBAC Model (Future v0.7.x)
 
