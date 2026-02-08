@@ -1,8 +1,8 @@
 # E2E Testing Guide
 
-## OpenLi Codex - Manual End-to-End Testing
+## OpenLI Codex - Manual End-to-End Testing
 
-**Version**: v0.6.6  
+**Version**: v0.6.7  
 **Last Updated**: Feb 8, 2026
 
 ---

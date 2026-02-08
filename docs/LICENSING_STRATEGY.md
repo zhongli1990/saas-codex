@@ -1,4 +1,4 @@
-# Licensing Strategy for OpenLi Codex
+# Licensing Strategy for OpenLI Codex
 
 ## IP Ownership & Commercial Licensing Guide
 
@@ -112,7 +112,7 @@ For your requirements, I recommend a **Dual Licensing** model with **Revenue-Bas
    - Required for dual licensing to work
 
 2. **Trademark Protection**
-   - Register "OpenLi" and "OpenLi Codex" as trademarks
+   - Register "OpenLI" and "OpenLI Codex" as trademarks
    - Prevents others from using the name commercially
 
 3. **Patent (Optional)**
@@ -175,7 +175,7 @@ Required for all external contributors to sign before PRs are merged.
 
 ### Step 5: Register Trademark
 
-- Apply to UK IPO for "OpenLi" and "OpenLi Codex" trademarks
+- Apply to UK IPO for "OpenLI" and "OpenLI Codex" trademarks
 - Cost: ~£170-£270 for UK registration
 - Consider EU trademark (~€850) for broader protection
 
@@ -227,7 +227,7 @@ This software is dual-licensed:
 
 TRADEMARK NOTICE
 
-"OpenLi", "OpenLi Codex", and the OpenLi logo are trademarks of 
+"OpenLI", "OpenLI Codex", and the OpenLI logo are trademarks of 
 Lightweight Integration Ltd. Use of these marks requires 
 written permission.
 
@@ -285,7 +285,7 @@ Signed electronically by submitting a pull request.
 2. **Short Term (This Month)**
    - [ ] Create CLA document
    - [ ] Set up CLA bot for GitHub PRs
-   - [ ] Register "OpenLi" / "OpenLi Codex" trademarks (UK IPO)
+   - [ ] Register "OpenLI" / "OpenLI Codex" trademarks (UK IPO)
 
 3. **Medium Term (This Quarter)**
    - [ ] Create commercial license agreement template

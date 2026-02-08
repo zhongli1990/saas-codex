@@ -1,8 +1,8 @@
 # Deployment Quick Notes
 
-## OpenLi Codex - Quick Reference Guide
+## OpenLI Codex - Quick Reference Guide
 
-**Version**: v0.6.6  
+**Version**: v0.6.7  
 **Last Updated**: Feb 8, 2026  
 **Copyright**: © 2026 Lightweight Integration Ltd, UK
 

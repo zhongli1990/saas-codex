@@ -1,6 +1,20 @@
 # Release Notes
 
-## v0.6.6 — OpenLi Codex Rebrand & IP Protection (Feb 8, 2026)
+## v0.6.7 — OpenLI Codex Branding Update (Feb 8, 2026)
+
+Release name: **openli branding**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.7`
+
+### Changes
+
+- Updated branding from "OpenLi" to "OpenLI" (uppercase LI)
+- Consistent trademark naming across all UI and documentation
+
+---
+
+## v0.6.6 — OpenLI Codex Rebrand & IP Protection (Feb 8, 2026)
 
 Release name: **openli rebrand**
 
@@ -9,7 +23,7 @@ Release name: **openli rebrand**
 
 ### Highlights
 
-- Rebranded from "SaaS Codex" to **OpenLi Codex**
+- Rebranded from "SaaS Codex" to **OpenLI Codex**
 - Dual licensing (AGPL-3.0 + Commercial)
 - IP protection with copyright headers and CLA
 - Comprehensive licensing documentation
@@ -18,11 +32,11 @@ Release name: **openli rebrand**
 
 | Level | Name | Purpose |
 |-------|------|---------|
-| **Platform** | OpenLi | The open enterprise AI agent ecosystem |
-| **Product** | OpenLi Codex | The core agent/codex platform |
-| **Vertical** | OpenLi ClinCodex | Healthcare/NHS vertical |
-| **Vertical** | OpenLi FinCodex | Banking/Finance vertical |
-| **Vertical** | OpenLi PharmaCodex | Pharma vertical |
+| **Platform** | OpenLI | The open enterprise AI agent ecosystem |
+| **Product** | OpenLI Codex | The core agent/codex platform |
+| **Vertical** | OpenLI ClinCodex | Healthcare/NHS vertical |
+| **Vertical** | OpenLI FinCodex | Banking/Finance vertical |
+| **Vertical** | OpenLI PharmaCodex | Pharma vertical |
 
 ### License Model
 
