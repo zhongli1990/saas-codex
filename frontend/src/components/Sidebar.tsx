@@ -30,11 +30,15 @@ const adminItems = [
   { href: "/admin/hooks", label: "Hooks", icon: "🔗" }
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     getMe().then(setUser);
@@ -51,7 +55,7 @@ export default function Sidebar() {
     <div className={`flex h-full flex-col p-4 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
       <div className="mb-6">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={onToggle}
           className="flex items-center gap-2 w-full text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md p-1 -m-1"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

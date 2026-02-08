@@ -18,7 +18,11 @@ import { getMe, logout, User } from "@/lib/auth";
 import AboutModal, { VERSION } from "./AboutModal";
 import SettingsMenu from "./SettingsMenu";
 
-export default function TopNav() {
+interface TopNavProps {
+  onMenuClick?: () => void;
+}
+
+export default function TopNav({ onMenuClick }: TopNavProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [showAbout, setShowAbout] = useState(false);
@@ -35,8 +39,19 @@ export default function TopNav() {
 
   return (
     <>
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-6">
+      <div className="flex w-full items-center justify-between px-4 md:px-6 py-3">
+        <div className="flex items-center gap-4 md:gap-6">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 rounded-md text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            aria-label="Open menu"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           {/* Logo and Brand */}
           <button
             onClick={() => setShowAbout(true)}
