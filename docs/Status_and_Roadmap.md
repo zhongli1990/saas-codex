@@ -690,6 +690,39 @@ See `File_Management_Design.md` for full specification.
 
 ---
 
+## v0.6.1 Features (✅ Released Feb 8, 2026)
+
+**Tag**: `v0.6.1`
+
+### Bug Fix: Runner Selection Persistence ✅
+- Fixed race condition where `runnerType` was initialized to `"codex"` before localStorage loaded
+- Sessions now correctly store `runner_type: 'claude'` when Claude Agent is selected
+- Removed auto-sync `useEffect` that was overwriting user's dropdown selection
+
+### Feature Verification ✅
+| Feature | Status | E2E Verified |
+|---------|--------|--------------|
+| Claude Agent SDK Migration | ✅ Done | ✅ SDK available in container |
+| Skills System | ✅ Done | ✅ 3 global skills loaded |
+| Hooks (pre-tool validation) | ✅ Done | ✅ Blocks dangerous commands |
+| UI/UX Streaming Events | ✅ Done | ✅ New event types handled |
+| Transcript Rendering | ✅ Done | ✅ Skill badges, iteration bars |
+
+### Test Commands
+```bash
+# Verify runner type stored correctly
+docker compose exec -T postgres psql -U saas -d saas -c \
+  "SELECT id, runner_type FROM sessions ORDER BY created_at DESC LIMIT 3;"
+
+# Verify claude-runner received requests
+docker compose logs claude-runner --tail=30 | grep -E "(POST|GET /runs)"
+
+# Verify skills loaded
+docker compose exec -T claude-runner ls -la /app/skills/
+```
+
+---
+
 ## v0.6.0 Features (✅ Released Feb 7, 2026)
 
 **Tag**: `v0.6.0`

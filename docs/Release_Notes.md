@@ -1,8 +1,8 @@
 # Release Notes
 
-## v0.6.1 — Runner Selection Fix (Feb 7, 2026)
+## v0.6.1 — Runner Selection Fix + Feature Verification (Feb 8, 2026)
 
-Release name: **hotfix**
+Release name: **hotfix + verification**
 
 **Status**: ✅ Released  
 **Tag**: `v0.6.1`
@@ -17,11 +17,48 @@ Release name: **hotfix**
 - `AppContext.tsx`: Use lazy initialization with `getInitialRunnerType()` to load from localStorage synchronously during initial render
 - `codex/page.tsx`: Remove `useEffect` that auto-synced runner type from session (was overwriting user's dropdown selection)
 
+### Feature Implementation Status
+
+| Feature | Status | Verified |
+|---------|--------|----------|
+| Claude Agent SDK Migration | ✅ Done | ✅ `claude-agent-sdk>=0.1.30` available in container |
+| Skills System (global + workspace) | ✅ Done | ✅ 3 global skills loaded |
+| Hooks (pre-tool-use validation) | ✅ Done | ✅ Blocks dangerous commands |
+| Global Skills Created | ✅ Done | ✅ `code-review`, `security-audit`, `healthcare-compliance` |
+| UI/UX Streaming Events | ✅ Done | ✅ New event types handled |
+| Transcript Rendering | ✅ Done | ✅ Skill badges, iteration bars, blocked styling |
+
+### How to Test
+
+#### 1. Runner Switching
+```bash
+# Verify Claude session stored correctly
+docker compose exec -T postgres psql -U saas -d saas -c \
+  "SELECT id, runner_type FROM sessions ORDER BY created_at DESC LIMIT 3;"
+```
+
+#### 2. Skills System
+```bash
+# Check global skills are loaded
+docker compose exec -T claude-runner ls -la /app/skills/
+# Expected: code-review/, security-audit/, healthcare-compliance/
+```
+
+#### 3. Hooks (Dangerous Command Blocking)
+- Run prompt: `"Execute: rm -rf /"`
+- **Expected**: Red "🚫 BLOCKED" message with reason
+
+#### 4. UI Streaming Events
+- Run any prompt with Claude runner
+- **Expected**: Purple skill badges, iteration progress bars
+
 ### Verified
 
 - ✅ Database correctly stores `runner_type: 'claude'` for Claude sessions
 - ✅ Claude-runner logs show `POST /threads`, `POST /runs`, `GET /runs/.../events`
-- ✅ E2E test successful with Claude response ("I am Claude - specifically Claude Sonnet 4.5, built by Anthropic")
+- ✅ E2E test successful with Claude response
+- ✅ Skills loaded from `/app/skills/` directory
+- ✅ Hooks block dangerous bash patterns
 
 ---
 
