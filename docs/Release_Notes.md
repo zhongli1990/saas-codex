@@ -1,5 +1,69 @@
 # Release Notes
 
+## v0.6.4 — Skills/Hooks Admin UI & RBAC (Feb 8, 2026)
+
+Release name: **admin ui & rbac**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.4`
+
+### Highlights
+
+- Skills Management Admin UI with CRUD operations
+- Hooks Configuration Admin UI
+- 3-tier RBAC design (Super Admin, Org Admin, End Users)
+- Agent Console UI improvements (sidebar layout, adaptive sizing)
+- E2E test suite with Playwright
+
+### New Features
+
+#### Skills Management UI (`/admin/skills`)
+- List all platform/tenant/project skills
+- View skill details and SKILL.md content
+- Create new skills with name validation
+- Edit skills with version tracking
+- Delete skills with confirmation
+- Reload skills in runner
+
+#### Hooks Configuration UI (`/admin/hooks`)
+- View platform security hooks (blocked patterns)
+- View platform audit hooks
+- Configure tenant compliance hooks (NHS, PII detection)
+- Configure tenant quality hooks
+
+#### Agent Console Improvements
+- Sidebar + main content layout
+- Resizable prompt textarea
+- Adaptive output area
+- Better spacing and shadows
+
+### RBAC Design
+
+| Role | Platform Skills | Tenant Skills | Project Skills |
+|------|-----------------|---------------|----------------|
+| Super Admin | CRUD | CRUD | CRUD |
+| Org Admin | View | CRUD | CRUD |
+| Project Admin | View | View | CRUD |
+| User | Use | Use | Use |
+
+### New Files
+
+- `frontend/src/app/(app)/admin/skills/page.tsx` - Skills Management UI
+- `frontend/src/app/(app)/admin/hooks/page.tsx` - Hooks Configuration UI
+- `frontend/src/app/api/claude/skills/` - Skills API proxy routes
+- `claude-runner/app/api/skills_router.py` - Skills CRUD API
+- `backend/app/auth/rbac.py` - RBAC middleware
+- `docs/RBAC_Design.md` - Detailed RBAC design document
+- `tests/e2e/skills.spec.ts` - Playwright E2E tests for Skills
+- `tests/e2e/hooks.spec.ts` - Playwright E2E tests for Hooks
+
+### Documentation
+
+- **`docs/RBAC_Design.md`** - 3-tier RBAC architecture
+- **`docs/Skills_Hooks_UI_Design.md`** - UI design specifications
+
+---
+
 ## v0.6.3 — Enterprise Skills Architecture (Feb 8, 2026)
 
 Release name: **skills architecture**

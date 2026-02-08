@@ -542,9 +542,10 @@ function CodexPageContent() {
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4">
-          <div className="rounded-lg border border-zinc-200 bg-white p-4">
+      <div className="flex gap-6 h-[calc(100vh-180px)] min-h-[600px]">
+        {/* Left Sidebar */}
+        <div className="w-80 flex-shrink-0 space-y-4 overflow-y-auto">
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-zinc-900">Workspace</div>
               <div className="flex gap-2">
@@ -656,7 +657,7 @@ function CodexPageContent() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
             <div className="text-sm font-medium text-zinc-900">Session</div>
             <div className="mt-3 space-y-3">
               <label className="block">
@@ -706,7 +707,7 @@ function CodexPageContent() {
           </div>
 
           {sessionId && runs.length > 0 && (
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="text-sm font-medium text-zinc-900">Run History</div>
               <p className="text-xs text-zinc-500 mt-1">Click to load prompt &amp; response</p>
               <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
@@ -740,8 +741,11 @@ function CodexPageContent() {
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-          <div className="text-sm font-medium text-zinc-900">Prompt</div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
+          {/* Prompt Section */}
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-medium text-zinc-900">Prompt</div>
           <div className="mt-3 space-y-3">
             <div className="flex items-center gap-2 text-xs">
               <span className={`px-2 py-0.5 rounded ${
@@ -765,7 +769,7 @@ function CodexPageContent() {
                 value={prompt}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
                 placeholder="Diagnose failing tests and propose a fix"
-                className="mt-1 min-h-40 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                className="mt-1 min-h-[100px] max-h-[200px] w-full rounded-md border border-zinc-300 px-3 py-2 text-sm resize-y"
               />
             </label>
             <button
@@ -776,9 +780,10 @@ function CodexPageContent() {
               Run Prompt
             </button>
           </div>
-        </div>
+          </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 flex flex-col">
+          {/* Output Section */}
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-zinc-900">Output</div>
             <div className="flex gap-1">
@@ -816,7 +821,7 @@ function CodexPageContent() {
           </div>
 
           {viewMode === "files" ? (
-            <div className="flex-1 overflow-y-auto min-h-[520px] max-h-[600px] p-2 bg-zinc-50 rounded-md border border-zinc-200">
+            <div className="flex-1 overflow-y-auto p-2 bg-zinc-50 rounded-md border border-zinc-200">
               {selectedWorkspaceId ? (
                 <FileBrowser workspaceId={selectedWorkspaceId} />
               ) : (
@@ -826,7 +831,7 @@ function CodexPageContent() {
               )}
             </div>
           ) : viewMode === "transcript" ? (
-            <div className="flex-1 overflow-y-auto min-h-[520px] max-h-[600px] space-y-4 p-2 bg-zinc-50 rounded-md border border-zinc-200">
+            <div className="flex-1 overflow-y-auto space-y-4 p-3 bg-zinc-50 rounded-md border border-zinc-200">
               {transcript.length === 0 && status !== "running" ? (
                 <div className="text-sm text-zinc-500 text-center py-8">
                   No messages yet. Run a prompt to see the transcript.
@@ -954,9 +959,10 @@ function CodexPageContent() {
             <textarea
               readOnly
               value={eventsText}
-              className="flex-1 min-h-[520px] w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs"
+              className="flex-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs resize-none"
             />
           )}
+        </div>
         </div>
       </div>
 
