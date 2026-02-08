@@ -1,3 +1,14 @@
+/**
+ * OpenLi Codex - Enterprise AI Agent Platform
+ * Copyright (c) 2026 Lightweight Integration Ltd
+ * 
+ * This file is part of OpenLi Codex.
+ * Licensed under AGPL-3.0 (community) or Commercial license.
+ * See LICENSE file for details.
+ * 
+ * Contact: Zhong@li-ai.co.uk
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -8,10 +19,22 @@ interface VersionHistory {
   features: string[];
 }
 
-const VERSION = "0.6.5";
+const VERSION = "0.6.6";
 const BUILD_DATE = "Feb 8, 2026";
+const PLATFORM_NAME = "OpenLi";
+const PRODUCT_NAME = "OpenLi Codex";
 
 const versionHistory: VersionHistory[] = [
+  {
+    version: "0.6.6",
+    date: "Feb 8, 2026",
+    features: [
+      "Rebranded to OpenLi Codex",
+      "Dual licensing (AGPL-3.0 + Commercial)",
+      "Copyright headers and IP protection",
+      "Updated documentation and naming structure",
+    ],
+  },
   {
     version: "0.6.5",
     date: "Feb 8, 2026",
@@ -130,7 +153,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">SaaS Codex</h2>
+              <h2 className="text-lg font-bold text-white">{PRODUCT_NAME}</h2>
               <p className="text-sm text-white/80">Enterprise AI Agent Platform</p>
             </div>
           </div>
@@ -190,7 +213,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
               <div>
                 <h3 className="mb-2 font-semibold text-zinc-900 dark:text-white">Description</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  SaaS Codex is an enterprise AI agent platform designed for healthcare integration,
+                  OpenLi Codex is an enterprise AI agent platform designed for healthcare integration,
                   clinical workflows, and intelligent document generation. Built with Claude Agent SDK
                   and OpenAI Codex support, it provides a multi-tenant SaaS architecture with robust
                   RBAC controls.
@@ -278,7 +301,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
         {/* Footer */}
         <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
           <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-            © 2026 SaaS Codex. Enterprise AI Agent Platform.
+            © 2026 Lightweight Integration Ltd. OpenLi Codex - Enterprise AI Agent Platform.
           </p>
         </div>
       </div>

@@ -1,8 +1,8 @@
 # E2E Testing Guide
 
-## SaaS Codex - Manual End-to-End Testing
+## OpenLi Codex - Manual End-to-End Testing
 
-**Version**: v0.6.5  
+**Version**: v0.6.6  
 **Last Updated**: Feb 8, 2026
 
 ---

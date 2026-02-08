@@ -1,10 +1,21 @@
+/**
+ * OpenLi Codex - Enterprise AI Agent Platform
+ * Copyright (c) 2026 Lightweight Integration Ltd
+ * 
+ * This file is part of OpenLi Codex.
+ * Licensed under AGPL-3.0 (community) or Commercial license.
+ * See LICENSE file for details.
+ * 
+ * Contact: Zhong@li-ai.co.uk
+ */
+
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SaaS Codex | Enterprise AI Agent Platform",
-  description: "AI-powered enterprise SaaS platform for healthcare integration, clinical workflows, and intelligent document generation",
+  title: "OpenLi Codex | Enterprise AI Agent Platform",
+  description: "OpenLi Codex - AI-powered enterprise platform for healthcare, pharma, and banking. Self-evolving multi-tenant agent ecosystem.",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -13,7 +24,7 @@ export const metadata: Metadata = {
       { url: "/favicon.svg", type: "image/svg+xml" },
     ],
   },
-  applicationName: "SaaS Codex",
+  applicationName: "OpenLi Codex",
   keywords: ["AI", "Claude", "Healthcare", "NHS", "Enterprise", "SaaS", "Agent"],
 };
 

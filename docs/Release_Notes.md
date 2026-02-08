@@ -1,5 +1,52 @@
 # Release Notes
 
+## v0.6.6 — OpenLi Codex Rebrand & IP Protection (Feb 8, 2026)
+
+Release name: **openli rebrand**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.6`
+
+### Highlights
+
+- Rebranded from "SaaS Codex" to **OpenLi Codex**
+- Dual licensing (AGPL-3.0 + Commercial)
+- IP protection with copyright headers and CLA
+- Comprehensive licensing documentation
+
+### Naming Structure
+
+| Level | Name | Purpose |
+|-------|------|---------|
+| **Platform** | OpenLi | The open enterprise AI agent ecosystem |
+| **Product** | OpenLi Codex | The core agent/codex platform |
+| **Vertical** | OpenLi ClinCodex | Healthcare/NHS vertical |
+| **Vertical** | OpenLi FinCodex | Banking/Finance vertical |
+| **Vertical** | OpenLi PharmaCodex | Pharma vertical |
+
+### License Model
+
+| Tier | Criteria | License | Cost |
+|------|----------|---------|------|
+| Community | Revenue < £250K | AGPL-3.0 | Free |
+| SME Sponsor | Revenue £250K-£2M | Commercial Lite | £500/year |
+| Enterprise | Revenue > £2M | Commercial | Custom |
+
+### New/Updated Files
+
+- `LICENSE` - Dual license (AGPL-3.0 + Commercial)
+- `docs/LICENSING_STRATEGY.md` - IP protection guide
+- `docs/Deployment_Quick_Notes.md` - Quick reference
+- `README.md` - Updated with OpenLi branding
+- UI components updated with OpenLi Codex branding
+
+### Contact
+
+**Lightweight Integration Ltd**  
+Email: Zhong@li-ai.co.uk
+
+---
+
 ## v0.6.5 — UI Enhancements & RBAC Display (Feb 8, 2026)
 
 Release name: **ui polish**

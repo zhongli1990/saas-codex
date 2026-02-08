@@ -1,8 +1,8 @@
 # Deployment Quick Notes
 
-## SaaS Codex - Quick Reference Guide
+## OpenLi Codex - Quick Reference Guide
 
-**Version**: v0.6.5  
+**Version**: v0.6.6  
 **Last Updated**: Feb 8, 2026  
 **Copyright**: © 2026 Lightweight Integration Ltd, UK
 
@@ -154,4 +154,5 @@ done
 
 **Lightweight Integration Ltd**  
 United Kingdom  
+Email: Zhong@li-ai.co.uk  
 https://github.com/zhongli1990/saas-codex

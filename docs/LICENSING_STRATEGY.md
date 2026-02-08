@@ -1,4 +1,4 @@
-# Licensing Strategy for SaaS Codex
+# Licensing Strategy for OpenLi Codex
 
 ## IP Ownership & Commercial Licensing Guide
 
@@ -112,7 +112,7 @@ For your requirements, I recommend a **Dual Licensing** model with **Revenue-Bas
    - Required for dual licensing to work
 
 2. **Trademark Protection**
-   - Register "SaaS Codex" as trademark
+   - Register "OpenLi" and "OpenLi Codex" as trademarks
    - Prevents others from using the name commercially
 
 3. **Patent (Optional)**
@@ -175,7 +175,7 @@ Required for all external contributors to sign before PRs are merged.
 
 ### Step 5: Register Trademark
 
-- Apply to UK IPO for "SaaS Codex" trademark
+- Apply to UK IPO for "OpenLi" and "OpenLi Codex" trademarks
 - Cost: ~£170-£270 for UK registration
 - Consider EU trademark (~€850) for broader protection
 
@@ -219,7 +219,7 @@ This software is dual-licensed:
    - Enterprise support and SLA options
    - Indemnification
    
-   Contact: licensing@lightweight-integration.co.uk
+   Contact: Zhong@li-ai.co.uk
    
    Pricing:
    - SME (£250K - £2M revenue): £500/year
@@ -227,7 +227,7 @@ This software is dual-licensed:
 
 TRADEMARK NOTICE
 
-"SaaS Codex" and the SaaS Codex logo are trademarks of 
+"OpenLi", "OpenLi Codex", and the OpenLi logo are trademarks of 
 Lightweight Integration Ltd. Use of these marks requires 
 written permission.
 
@@ -285,7 +285,7 @@ Signed electronically by submitting a pull request.
 2. **Short Term (This Month)**
    - [ ] Create CLA document
    - [ ] Set up CLA bot for GitHub PRs
-   - [ ] Register "SaaS Codex" trademark (UK IPO)
+   - [ ] Register "OpenLi" / "OpenLi Codex" trademarks (UK IPO)
 
 3. **Medium Term (This Quarter)**
    - [ ] Create commercial license agreement template
@@ -318,4 +318,4 @@ A: Yes, it has been enforced in court (e.g., Artifex vs Hancom). The copyleft pr
 
 **Lightweight Integration Ltd**  
 United Kingdom  
-licensing@lightweight-integration.co.uk
+Zhong@li-ai.co.uk

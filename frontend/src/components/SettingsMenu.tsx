@@ -1,3 +1,14 @@
+/**
+ * OpenLi Codex - Enterprise AI Agent Platform
+ * Copyright (c) 2026 Lightweight Integration Ltd
+ * 
+ * This file is part of OpenLi Codex.
+ * Licensed under AGPL-3.0 (community) or Commercial license.
+ * See LICENSE file for details.
+ * 
+ * Contact: Zhong@li-ai.co.uk
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -416,7 +427,7 @@ export default function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
         {/* Footer */}
         <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
           <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-            Sample data for demonstration. See RBAC_Design.md for full documentation.
+            © 2026 Lightweight Integration Ltd. See RBAC_Design.md for full documentation.
           </p>
         </div>
       </div>

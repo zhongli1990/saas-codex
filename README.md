@@ -1,9 +1,9 @@
-# SaaS Codex
+# OpenLi Codex
 
 [![License: Dual](https://img.shields.io/badge/License-AGPL%20v3%20%2F%20Commercial-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.5-green.svg)](docs/Release_Notes.md)
+[![Version](https://img.shields.io/badge/version-0.6.6-green.svg)](docs/Release_Notes.md)
 
-**SaaS Codex** is an enterprise AI agent platform for automated analysis and implementation of **healthcare integrations**.
+**OpenLi Codex** is an enterprise AI agent platform for healthcare, pharma, and banking - a self-evolving multi-tenant agent ecosystem.
 
 > **© 2026 Lightweight Integration Ltd, UK** — Dual licensed under AGPL-3.0 (community) and Commercial license. See [LICENSE](LICENSE) for details.
 
@@ -14,9 +14,15 @@ The long-term vision is to provide an "integration engineering copilot" that can
 - validate and document integration behavior
 - operate safely under policy controls and audit logging
 
-## Current Release: v0.6.5
+## Current Release: v0.6.6
 
-### v0.6.5 (Latest - Feb 8, 2026)
+### v0.6.6 (Latest - Feb 8, 2026)
+- **Rebranded to OpenLi Codex**: New platform and product naming
+- **Dual Licensing**: AGPL-3.0 (community) + Commercial license
+- **IP Protection**: Copyright headers, CLA, trademark guidance
+- **Documentation**: Licensing strategy, naming structure
+
+### v0.6.5 (Feb 8, 2026)
 - **UI Enhancements**: New favicon, About modal, Settings/RBAC menu
 - **Skills Management UI**: Full CRUD for platform/tenant/project skills
 - **Hooks Configuration UI**: Security, audit, compliance hooks
@@ -208,7 +214,8 @@ alembic upgrade head
 
 ## Status
 
-- **v0.6.5 (current)**: UI enhancements, About modal, Settings/RBAC menu
+- **v0.6.6 (current)**: Rebranded to OpenLi Codex, dual licensing, IP protection
+- **v0.6.5**: UI enhancements, About modal, Settings/RBAC menu
 - **v0.6.4**: Skills/Hooks Admin UI, RBAC middleware, Playwright tests
 - **v0.6.0**: Claude Agent SDK, Skills system, Pre/post hooks
 - **v0.5.x**: File upload/browser, RBAC tables

@@ -1,8 +1,8 @@
 # AWS Deployment Guide
 
-## SaaS Codex - Ubuntu VM Deployment with Docker Compose
+## OpenLi Codex - Ubuntu VM Deployment with Docker Compose
 
-**Version**: v0.6.5  
+**Version**: v0.6.6  
 **Last Updated**: Feb 8, 2026
 
 ---

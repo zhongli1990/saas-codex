@@ -1,3 +1,14 @@
+/**
+ * OpenLi Codex - Enterprise AI Agent Platform
+ * Copyright (c) 2026 Lightweight Integration Ltd
+ * 
+ * This file is part of OpenLi Codex.
+ * Licensed under AGPL-3.0 (community) or Commercial license.
+ * See LICENSE file for details.
+ * 
+ * Contact: Zhong@li-ai.co.uk
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -42,7 +53,7 @@ export default function TopNav() {
               </svg>
             </div>
             <div className="text-left">
-              <div className="text-sm font-semibold text-zinc-900 dark:text-white">SaaS Codex</div>
+              <div className="text-sm font-semibold text-zinc-900 dark:text-white">OpenLi Codex</div>
               <div className="text-[10px] text-zinc-500 dark:text-zinc-400">v{VERSION}</div>
             </div>
           </button>
