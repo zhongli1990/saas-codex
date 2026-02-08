@@ -3,13 +3,18 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SaaS Codex",
-  description: "AI-powered healthcare integration platform",
+  title: "SaaS Codex | Enterprise AI Agent Platform",
+  description: "AI-powered enterprise SaaS platform for healthcare integration, clinical workflows, and intelligent document generation",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
     ],
+    apple: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
   },
+  applicationName: "SaaS Codex",
+  keywords: ["AI", "Claude", "Healthcare", "NHS", "Enterprise", "SaaS", "Agent"],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -4,10 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getMe, logout, User } from "@/lib/auth";
+import AboutModal, { VERSION } from "./AboutModal";
+import SettingsMenu from "./SettingsMenu";
 
 export default function TopNav() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     getMe().then(setUser);
@@ -19,46 +23,105 @@ export default function TopNav() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
-          <div className="text-sm font-semibold text-zinc-900">Codex Console</div>
-          <div className="hidden text-xs text-zinc-500 md:block">SaaS UI</div>
-        </div>
-        <nav className="hidden md:flex items-center gap-4">
-          <Link href="/codex" className="text-sm text-zinc-600 hover:text-zinc-900">
-            Agent
-          </Link>
-          <Link href="/admin/skills" className="text-sm text-zinc-600 hover:text-zinc-900">
-            Skills
-          </Link>
-          <Link href="/admin/hooks" className="text-sm text-zinc-600 hover:text-zinc-900">
-            Hooks
-          </Link>
-        </nav>
-      </div>
-      <div className="flex items-center gap-3">
-        {user ? (
-          <>
-            <div className="hidden rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 md:block">
-              {user.display_name || user.email}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <Link
-            href="/login"
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+    <>
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
+        <div className="flex items-center gap-6">
+          {/* Logo and Brand */}
+          <button
+            onClick={() => setShowAbout(true)}
+            className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
-            Login
-          </Link>
-        )}
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 via-indigo-500 to-purple-500">
+              <svg className="h-5 w-5 text-white" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="42" r="18" stroke="currentColor" strokeWidth="4"/>
+                <circle cx="50" cy="42" r="8" fill="currentColor"/>
+                <line x1="50" y1="24" x2="50" y2="16" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="50" y1="60" x2="50" y2="68" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="32" y1="42" x2="24" y2="42" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="68" y1="42" x2="76" y2="42" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-zinc-900 dark:text-white">SaaS Codex</div>
+              <div className="text-[10px] text-zinc-500 dark:text-zinc-400">v{VERSION}</div>
+            </div>
+          </button>
+
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            <Link 
+              href="/codex" 
+              className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+            >
+              Agent
+            </Link>
+            <Link 
+              href="/admin/skills" 
+              className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+            >
+              Skills
+            </Link>
+            <Link 
+              href="/admin/hooks" 
+              className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+            >
+              Hooks
+            </Link>
+          </nav>
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-2">
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="Settings & RBAC"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+
+          {/* About Button */}
+          <button
+            onClick={() => setShowAbout(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="About"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+
+          {/* User section */}
+          {user ? (
+            <>
+              <div className="hidden rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 md:block">
+                {user.display_name || user.email}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+            >
+              Login
+            </Link>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Modals */}
+      <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
+      <SettingsMenu isOpen={showSettings} onClose={() => setShowSettings(false)} />
+    </>
   );
 }
