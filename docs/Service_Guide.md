@@ -8,6 +8,7 @@ This document provides comprehensive documentation of all services in the saas-c
 - 2026-02-06: Added file upload/browser/download features and RBAC placeholder tables
 - 2026-02-07: **v0.6.0** - Claude Agent SDK migration, skill files, pre/post tool hooks, streaming UI improvements
 - 2026-02-08: **v0.6.4** - Skills/Hooks Admin UI, RBAC middleware, E2E tests with Playwright
+- 2026-02-08: **v0.6.5** - UI enhancements (favicon, About modal, Settings/RBAC menu)
 
 ---
 
@@ -1086,6 +1087,8 @@ docker compose logs -f backend
 
 ## 6. Testing Procedures
 
+> **📘 For detailed E2E testing with test data and step-by-step instructions, see [E2E_Testing_Guide.md](E2E_Testing_Guide.md)**
+
 ### 6.1 Service Health Checks
 
 ```bash
@@ -1407,6 +1410,8 @@ Expected:
 
 ## 7. Deployment
 
+> **📘 For detailed AWS deployment instructions, see [AWS_Deployment_Guide.md](AWS_Deployment_Guide.md)**
+
 ### 7.1 Docker Compose (Development)
 
 ```bash
@@ -1434,6 +1439,11 @@ CODEX_API_KEY=sk-...
 # Required for Claude runner
 ANTHROPIC_API_KEY=sk-ant-...
 
+# Authentication (v0.4.0+)
+JWT_SECRET_KEY=your-secure-random-string
+ADMIN_EMAIL=admin@saas-codex.com
+ADMIN_PASSWORD=Admin123!
+
 # Optional for LLM Gateway
 OPENAI_API_KEY=sk-...
 
@@ -1448,6 +1458,19 @@ LANGSMITH_PROJECT=saas-codex
 |--------|---------|
 | `./workspaces:/workspaces` | Cloned repositories and session data |
 | `postgres_data` | PostgreSQL data persistence |
+
+### 7.4 AWS Production Deployment
+
+For deploying to AWS Ubuntu VM with Docker Compose, see the comprehensive guide:
+
+**[AWS_Deployment_Guide.md](AWS_Deployment_Guide.md)**
+
+Key sections:
+- Fresh installation steps
+- Upgrade from v0.5.x to v0.6.5
+- Deploy specific version/tag
+- Post-deployment verification
+- Rollback procedures
 
 ---
 
