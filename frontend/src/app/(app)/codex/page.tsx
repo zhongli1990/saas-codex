@@ -98,6 +98,7 @@ function CodexPageContent() {
   const [prompt, setPrompt] = useState("");
   const [viewMode, setViewMode] = useState<"transcript" | "raw" | "files">("transcript");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
@@ -546,17 +547,29 @@ function CodexPageContent() {
         </div>
       )}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Agent Console</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          Select a workspace, choose a runner, and run prompts with streaming output.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white">Agent Console</h1>
+          <p className="mt-1 text-xs md:text-sm text-zinc-600 dark:text-zinc-400">
+            Select a workspace, choose a runner, and run prompts.
+          </p>
+        </div>
+        {/* Mobile Controls Toggle */}
+        <button
+          onClick={() => setControlsCollapsed(!controlsCollapsed)}
+          className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+        >
+          <span>⚙️</span>
+          <span className="hidden sm:inline">{controlsCollapsed ? 'Show Controls' : 'Hide Controls'}</span>
+        </button>
       </div>
 
-      <div className="flex gap-6 h-[calc(100vh-180px)] min-h-[600px]">
-        {/* Left Sidebar */}
-        <div className="w-80 flex-shrink-0 space-y-4 overflow-y-auto">
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-auto lg:h-[calc(100vh-180px)] min-h-0 lg:min-h-[600px]">
+        {/* Controls Panel - Collapsible on mobile, sidebar on desktop */}
+        <div className={`lg:w-80 flex-shrink-0 space-y-4 overflow-y-auto transition-all duration-300 ${
+          controlsCollapsed ? 'hidden' : 'block'
+        }`}>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-zinc-900">Workspace</div>
               <div className="flex gap-2">
@@ -668,8 +681,8 @@ function CodexPageContent() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="text-sm font-medium text-zinc-900">Session</div>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-sm">
+            <div className="text-sm font-medium text-zinc-900 dark:text-white">Session</div>
             <div className="mt-3 space-y-3">
               <label className="block">
                 <div className="text-xs font-medium text-zinc-700">Runner</div>
@@ -730,8 +743,8 @@ function CodexPageContent() {
           </div>
 
           {sessionId && runs.length > 0 && (
-            <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="text-sm font-medium text-zinc-900">Run History</div>
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-sm">
+              <div className="text-sm font-medium text-zinc-900 dark:text-white">Run History</div>
               <p className="text-xs text-zinc-500 mt-1">Click to load prompt &amp; response</p>
               <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
                 {runs.map((r) => (
@@ -767,8 +780,8 @@ function CodexPageContent() {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col gap-4 min-w-0">
           {/* Prompt Section */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="text-sm font-medium text-zinc-900">Prompt</div>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-sm">
+            <div className="text-sm font-medium text-zinc-900 dark:text-white">Prompt</div>
           <div className="mt-3 space-y-3">
             <div className="flex items-center gap-2 text-xs">
               <span className={`px-2 py-0.5 rounded ${
@@ -806,7 +819,7 @@ function CodexPageContent() {
           </div>
 
           {/* Output Section */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm flex-1 flex flex-col min-h-0">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-sm flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-zinc-900">Output</div>
             <div className="flex gap-1">

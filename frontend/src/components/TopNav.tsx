@@ -58,14 +58,7 @@ export default function TopNav({ onMenuClick }: TopNavProps) {
             className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 via-indigo-500 to-purple-500">
-              <svg className="h-5 w-5 text-white" viewBox="0 0 100 100" fill="none">
-                <circle cx="50" cy="42" r="18" stroke="currentColor" strokeWidth="4"/>
-                <circle cx="50" cy="42" r="8" fill="currentColor"/>
-                <line x1="50" y1="24" x2="50" y2="16" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="50" y1="60" x2="50" y2="68" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="32" y1="42" x2="24" y2="42" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="68" y1="42" x2="76" y2="42" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
+              <span className="text-white text-sm font-bold">LI</span>
             </div>
             <div className="text-left">
               <div className="text-sm font-semibold text-zinc-900 dark:text-white">OpenLI Codex</div>
