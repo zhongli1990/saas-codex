@@ -1,5 +1,58 @@
 # Release Notes
 
+## v0.6.5 — UI Enhancements & RBAC Display (Feb 8, 2026)
+
+Release name: **ui polish**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.5`
+
+### Highlights
+
+- New app favicon and branding
+- About modal with version history
+- Settings menu with sample users and RBAC display
+- Enhanced navigation bar with logo
+
+### New Features
+
+#### App Branding
+- Modern AI-themed favicon (brain/circuit icon)
+- Updated browser tab title: "SaaS Codex | Enterprise AI Agent Platform"
+- Gradient logo in navigation bar
+
+#### About Modal (click logo or ℹ️ icon)
+- Current version and build date display
+- Key features list
+- Technology stack badges
+- **Version History tab** with all releases and features
+
+#### Settings & RBAC Menu (⚙️ icon)
+- **Sample Users tab**: 8 sample users across 3 tenants
+  - Platform Admin (Super Admin)
+  - NHS Birmingham Trust users (Org Admin, Project Admin, Editor)
+  - Enterprise Corp users (Org Admin, Editor, Viewer)
+  - Pending user for approval workflow demo
+- **User Groups tab**: 8 groups with permissions
+  - Super Admins, Org Admins, Project Managers
+  - Developers, Sales, Architecture, Clinical Leads, Stakeholders
+- **RBAC Matrix tab**: Visual permission matrix
+  - 3-tier hierarchy diagram
+  - Resource × Role permission table
+
+### New Files
+
+- `frontend/src/components/AboutModal.tsx` - About modal with version history
+- `frontend/src/components/SettingsMenu.tsx` - Settings menu with RBAC display
+
+### Updated Files
+
+- `frontend/public/favicon.svg` - New AI-themed favicon
+- `frontend/src/app/layout.tsx` - Updated metadata and title
+- `frontend/src/components/TopNav.tsx` - Logo, About, Settings buttons
+
+---
+
 ## v0.6.4 — Skills/Hooks Admin UI & RBAC (Feb 8, 2026)
 
 Release name: **admin ui & rbac**
