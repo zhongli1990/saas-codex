@@ -19,12 +19,29 @@ interface VersionHistory {
   features: string[];
 }
 
-const VERSION = "0.6.7";
+const VERSION = "0.6.8";
 const BUILD_DATE = "Feb 8, 2026";
 const PLATFORM_NAME = "OpenLI";
 const PRODUCT_NAME = "OpenLI Codex";
 
 const versionHistory: VersionHistory[] = [
+  {
+    version: "0.6.8",
+    date: "Feb 8, 2026",
+    features: [
+      "Collapsible sidebar with dark mode",
+      "Multi-agent SDK dropdown (7 runners)",
+      "Updated branding and descriptions",
+      "Improved mobile responsiveness",
+    ],
+  },
+  {
+    version: "0.6.7",
+    date: "Feb 8, 2026",
+    features: [
+      "OpenLI branding (uppercase LI)",
+    ],
+  },
   {
     version: "0.6.6",
     date: "Feb 8, 2026",
@@ -214,9 +231,9 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                 <h3 className="mb-2 font-semibold text-zinc-900 dark:text-white">Description</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   OpenLI Codex is an enterprise AI agent platform designed for healthcare integration,
-                  clinical workflows, and intelligent document generation. Built with Claude Agent SDK
-                  and OpenAI Codex support, it provides a multi-tenant SaaS architecture with robust
-                  RBAC controls.
+                  clinical workflows, and intelligent document generation. Built with cutting-edge 
+                  agentic AI platforms, it provides a multi-tenant SaaS architecture with robust
+                  RBAC controls and plug-and-play agent SDK support.
                 </p>
               </div>
 
@@ -225,12 +242,12 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                 <h3 className="mb-2 font-semibold text-zinc-900 dark:text-white">Key Features</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    "Claude Agent SDK",
-                    "OpenAI Codex Support",
+                    "Multi-Agent SDKs",
+                    "Plug-and-Play Runners",
                     "Skills Management",
                     "Security Hooks",
                     "Multi-tenant RBAC",
-                    "NHS Compliance",
+                    "NHS/HIPAA Compliance",
                     "SSE Streaming",
                     "File Management",
                   ].map((feature) => (

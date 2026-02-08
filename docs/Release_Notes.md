@@ -1,5 +1,34 @@
 # Release Notes
 
+## v0.6.8 — UI Polish & Multi-Agent SDKs (Feb 8, 2026)
+
+Release name: **ui polish**
+
+**Status**: ✅ Released  
+**Tag**: `v0.6.8`
+
+### Changes
+
+- **Collapsible Sidebar**: Click logo to collapse/expand, with dark mode support
+- **Multi-Agent SDK Dropdown**: 7 runners (Claude, OpenAI, Gemini, Azure, Bedrock, OpenLI, Custom)
+- **Updated Branding**: Generic SDK descriptions, NHS/HIPAA compliance mentions
+- **Dark Mode Fixes**: High contrast text in sidebar and navigation
+- **Admin Links**: Skills and Hooks added to sidebar admin section
+
+### Runner SDKs
+
+| Runner | Status | Description |
+|--------|--------|-------------|
+| Claude Agent | ✅ Available | Anthropic Claude SDK |
+| OpenAI Agent | ✅ Available | OpenAI Codex SDK |
+| Gemini Agent | 🔜 Coming Soon | Google Gemini SDK |
+| Azure OpenAI | 🔜 Coming Soon | Azure OpenAI Service |
+| AWS Bedrock | 🔜 Coming Soon | AWS Bedrock Claude |
+| OpenLI Agent | 🔜 Coming Soon | Custom LI Agent SDK |
+| Custom Agent | 🔜 Coming Soon | Self-hosted LLM/SLM |
+
+---
+
 ## v0.6.7 — OpenLI Codex Branding Update (Feb 8, 2026)
 
 Release name: **openli branding**

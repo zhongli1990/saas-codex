@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
-type RunnerType = "codex" | "claude";
+type RunnerType = "codex" | "claude" | "gemini" | "azure" | "bedrock" | "openli" | "custom";
 
 const RUNNER_TYPE_STORAGE_KEY = "saas-codex-runner-type";
 
@@ -10,11 +10,11 @@ const RUNNER_TYPE_STORAGE_KEY = "saas-codex-runner-type";
 function getInitialRunnerType(): RunnerType {
   if (typeof window !== "undefined") {
     const stored = localStorage.getItem(RUNNER_TYPE_STORAGE_KEY);
-    if (stored === "codex" || stored === "claude") {
-      return stored;
+    if (stored === "codex" || stored === "claude" || stored === "gemini" || stored === "azure" || stored === "bedrock" || stored === "openli" || stored === "custom") {
+      return stored as RunnerType;
     }
   }
-  return "codex";
+  return "claude";
 }
 
 type Workspace = {

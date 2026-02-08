@@ -1,7 +1,7 @@
 # OpenLI Codex
 
 [![License: Dual](https://img.shields.io/badge/License-AGPL%20v3%20%2F%20Commercial-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.7-green.svg)](docs/Release_Notes.md)
+[![Version](https://img.shields.io/badge/version-0.6.8-green.svg)](docs/Release_Notes.md)
 
 **OpenLI Codex** is an enterprise AI agent platform for healthcare, pharma, and banking - a self-evolving multi-tenant agent ecosystem.
 

@@ -7,7 +7,18 @@ import remarkGfm from "remark-gfm";
 import { useAppContext } from "@/contexts/AppContext";
 import { FileBrowser, UploadModal } from "@/components/workspace";
 
-type RunnerType = "codex" | "claude";
+type RunnerType = "codex" | "claude" | "gemini" | "azure" | "bedrock" | "openli" | "custom";
+
+// Runner configuration with availability status
+const RUNNERS = [
+  { value: "claude", label: "Claude Agent", available: true },
+  { value: "codex", label: "OpenAI Agent", available: true },
+  { value: "gemini", label: "Gemini Agent", available: false },
+  { value: "azure", label: "Azure OpenAI", available: false },
+  { value: "bedrock", label: "AWS Bedrock", available: false },
+  { value: "openli", label: "OpenLI Agent", available: false },
+  { value: "custom", label: "Custom Agent", available: false },
+] as const;
 
 type EventLine = {
   at: number;
@@ -666,6 +677,11 @@ function CodexPageContent() {
                   value={runnerType}
                   onChange={(e) => {
                     const newRunner = e.target.value as RunnerType;
+                    const runner = RUNNERS.find(r => r.value === newRunner);
+                    if (runner && !runner.available) {
+                      alert(`${runner.label} is coming soon!`);
+                      return;
+                    }
                     setRunnerType(newRunner);
                     // Auto-clear session when runner changes
                     if (sessionId) {
@@ -676,10 +692,17 @@ function CodexPageContent() {
                       setPrompt("");
                     }
                   }}
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                 >
-                  <option value="codex">OpenAI Agent</option>
-                  <option value="claude">Claude Agent</option>
+                  {RUNNERS.map((runner) => (
+                    <option 
+                      key={runner.value} 
+                      value={runner.value}
+                      disabled={!runner.available}
+                    >
+                      {runner.label}{!runner.available ? " (Coming Soon)" : ""}
+                    </option>
+                  ))}
                 </select>
               </label>
               {sessionId && (
