@@ -74,7 +74,8 @@ This document provides a comprehensive status report of all releases, pending re
 | SSE Streaming | ✅ Complete | Anti-buffering, replay |
 | Persistence Schema | ✅ Complete | SQLAlchemy async ORM |
 | Database Integration | ✅ Complete | Repository pattern, PostgreSQL |
-| Prompt Manager | ✅ Placeholder | CRUD + render |
+| Prompt Manager | ✅ Complete | DB-backed CRUD, versioning, render, RBAC, 10 seed templates |
+| Skills Manager | ✅ Complete | DB-backed CRUD, versioning, file-sync, toggle, RBAC |
 | Evaluation Service | ✅ Placeholder | Score endpoint |
 | Memory Service | ✅ Placeholder | Store + query |
 | LLM Gateway | ✅ Placeholder | Unified API |

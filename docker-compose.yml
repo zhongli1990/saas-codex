@@ -79,6 +79,7 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://saas:saas@postgres:5432/saas
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       RUNNER_URL: http://runner:8081
       RUNNER_CODEX_URL: http://runner:8081
       RUNNER_CLAUDE_URL: http://claude-runner:8082
@@ -119,7 +120,7 @@ services:
       context: ./prompt-manager
     environment:
       DATABASE_URL: postgresql+psycopg://saas:saas@postgres:5432/saas
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production-abc123}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       GLOBAL_SKILLS_PATH: /app/skills
       PORT: 8083
     volumes:

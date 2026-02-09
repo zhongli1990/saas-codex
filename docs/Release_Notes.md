@@ -1,5 +1,87 @@
 # Release Notes
 
+## v0.7.0 — Prompt & Skills Manager (Feb 9, 2026)
+
+Release name: **prompt-skills-manager**
+
+**Status**: ✅ Released  
+**Tag**: `v0.7.0`  
+**Branch**: `feature/prompt-skills-manager`
+
+### Highlights
+
+- Full **Prompt & Skills Manager** microservice (FastAPI, PostgreSQL-backed)
+- **Prompts tab** in sidebar with template CRUD, filtering, search, and variable rendering
+- **Template picker** dropdown in Agent Console prompt area
+- **10 seed platform templates** auto-loaded on first startup
+- **Skills CRUD API** with versioning, multi-tenant RBAC, and file-sync
+- **E2E test suite** for API and UI (Python + Playwright)
+
+### Backend — prompt-manager Microservice
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| SQLAlchemy ORM models | ✅ | `prompt_templates`, `skills`, `template_usage_log` |
+| Alembic migration 001 | ✅ | Initial schema with UUIDs, JSONB, constraints, indexes |
+| Template CRUD API | ✅ | List, Get, Create, Update (versioned), Delete (archive) |
+| Template Render API | ✅ | `{{variable}}` substitution with unresolved cleanup |
+| Template Publish/Clone | ✅ | Status lifecycle: draft → published → archived |
+| Skills CRUD API | ✅ | List, Get, Create, Update (versioned), Delete, Toggle |
+| Skills Sync from Files | ✅ | Import `claude-runner/skills/` YAML+MD into DB |
+| Categories API | ✅ | List with template/skill counts |
+| Usage Analytics | ✅ | Log usage, get stats |
+| JWT Auth Middleware | ✅ | Shared secret with backend, role extraction |
+| RBAC Visibility | ✅ | private/team/tenant/public filtering |
+| Auto-seed on Startup | ✅ | 10 platform templates when DB is empty |
+| Docker Compose | ✅ | Port 8083/9105, depends_on postgres |
+
+### Frontend
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Next.js API Proxy | ✅ | `/api/prompt-manager/[...path]` → `http://prompt-manager:8083` |
+| Prompts List Page | ✅ | `/prompts` with filter, search, category badges |
+| New Template Modal | ✅ | Create with name, category, body, variables |
+| Use Template Modal | ✅ | Variable fill, live preview, Copy, Send to Agent |
+| Template Picker | ✅ | Dropdown in Agent Console prompt area |
+| Variable Fill Modal | ✅ | Typed inputs (string, text, enum, date, number) |
+| sessionStorage Prefill | ✅ | Prompts page → Agent Console integration |
+| Sidebar Navigation | ✅ | 📝 Prompts link added |
+| AboutModal v0.7.0 | ✅ | Version history and key features updated |
+
+### Seed Templates (10)
+
+| Template | Category | Variables |
+|----------|----------|-----------|
+| NHS SoW Generator | sales | 8 |
+| Project Charter | project-management | 5 |
+| Architecture Decision Record | architecture | 5 |
+| Code Review Checklist | development | 4 |
+| Test Strategy Document | qa | 5 |
+| PRD Writer | product | 6 |
+| User Guide Generator | support | 5 |
+| NHS Compliance Audit | compliance | 4 |
+| Weekly Status Report | project-management | 8 |
+| API Design Specification | architecture | 5 |
+
+### Database Changes
+
+- **New tables** (prompt-manager Alembic 001): `prompt_templates`, `skills`, `template_usage_log`
+- **Separate Alembic chain**: prompt-manager has its own `alembic_version` tracking
+- **No changes** to existing backend tables (001–004 unchanged)
+- Tables created via `Base.metadata.create_all()` on startup (Alembic optional)
+
+### Bug Fixes
+
+- **JWT Secret Key alignment**: Backend and prompt-manager now share the same default secret via `JWT_SECRET_KEY` env var in docker-compose
+
+### Testing
+
+- `tests/test_prompt_manager_api.py` — Python API E2E tests (health, auth, CRUD, render, categories)
+- `tests/e2e/prompts.spec.ts` — Playwright UI E2E tests (navigation, templates, picker, proxy)
+
+---
+
 ## v0.6.8 — UI Polish & Multi-Agent SDKs (Feb 8, 2026)
 
 Release name: **ui polish**
