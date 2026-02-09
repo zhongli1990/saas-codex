@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAppContext } from "@/contexts/AppContext";
 import { FileBrowser, UploadModal } from "@/components/workspace";
+import { getToken } from "@/lib/auth";
 
 type RunnerType = "codex" | "claude" | "gemini" | "azure" | "bedrock" | "openli" | "custom";
 
@@ -102,6 +103,12 @@ function CodexPageContent() {
   const [initialized, setInitialized] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
+  // Template picker state
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<{id: string; name: string; category: string; variables: any[]; template_body: string; sample_values: Record<string, string>}[]>([]);
+  const [showTemplateVarModal, setShowTemplateVarModal] = useState<{id: string; name: string; variables: any[]; template_body: string; sample_values: Record<string, string>} | null>(null);
+  const [templateVarValues, setTemplateVarValues] = useState<Record<string, string>>({});
+
   // Initialize from URL params (only on first load)
   useEffect(() => {
     const wsParam = searchParams.get("workspace");
@@ -126,6 +133,54 @@ function CodexPageContent() {
     const newUrl = params.toString() ? `?${params.toString()}` : "/codex";
     router.replace(newUrl, { scroll: false });
   }, [selectedWorkspaceId, sessionId, initialized, router]);
+
+  // Fetch available prompt templates for the picker
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const token = getToken();
+      const res = await fetch("/api/prompt-manager/templates?status=published&limit=50", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableTemplates(data.items || []);
+      }
+    } catch (e) {
+      // Silently fail - template picker is optional
+      console.debug("Template picker: service unavailable");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  const handleSelectTemplate = (t: typeof availableTemplates[0]) => {
+    setTemplatePickerOpen(false);
+    if (t.variables && t.variables.length > 0) {
+      // Has variables - show fill modal
+      const initial: Record<string, string> = {};
+      for (const v of t.variables) {
+        initial[v.name] = t.sample_values?.[v.name] || v.default || "";
+      }
+      setTemplateVarValues(initial);
+      setShowTemplateVarModal(t);
+    } else {
+      // No variables - insert directly
+      setPrompt(t.template_body);
+    }
+  };
+
+  const handleApplyTemplateVars = () => {
+    if (!showTemplateVarModal) return;
+    let rendered = showTemplateVarModal.template_body;
+    for (const [k, v] of Object.entries(templateVarValues)) {
+      rendered = rendered.replaceAll(`{{${k}}}`, v);
+    }
+    setPrompt(rendered);
+    setShowTemplateVarModal(null);
+  };
 
   const fetchRuns = useCallback(async (sessionId: string) => {
     try {
@@ -806,12 +861,44 @@ function CodexPageContent() {
               )}
             </div>
             <label className="block">
-              <div className="text-xs font-medium text-zinc-700">Instruction</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Instruction</div>
+                {availableTemplates.length > 0 && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setTemplatePickerOpen(!templatePickerOpen)}
+                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1"
+                    >
+                      📝 Use Template
+                    </button>
+                    {templatePickerOpen && (
+                      <div className="absolute right-0 top-6 z-50 w-72 max-h-64 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 shadow-xl">
+                        <div className="p-2 border-b border-zinc-100 dark:border-zinc-700 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                          Select a prompt template
+                        </div>
+                        {availableTemplates.map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => handleSelectTemplate(t)}
+                            className="w-full text-left px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 border-b border-zinc-50 dark:border-zinc-700 last:border-0"
+                          >
+                            <div className="text-xs font-medium text-zinc-800 dark:text-zinc-200">{t.name}</div>
+                            <div className="text-[10px] text-zinc-400 dark:text-zinc-500 flex items-center gap-2 mt-0.5">
+                              <span className="bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">{t.category}</span>
+                              {t.variables?.length > 0 && <span>{t.variables.length} var{t.variables.length !== 1 ? "s" : ""}</span>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <textarea
                 value={prompt}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
                 placeholder="Diagnose failing tests and propose a fix"
-                className="mt-1 min-h-[100px] max-h-[200px] w-full rounded-md border border-zinc-300 px-3 py-2 text-sm resize-y"
+                className="mt-1 min-h-[100px] max-h-[200px] w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-white resize-y"
               />
             </label>
             <button
@@ -1086,6 +1173,67 @@ function CodexPageContent() {
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
                 Import Selected ({selectedFolders.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Variable Fill Modal */}
+      {showTemplateVarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-lg bg-white dark:bg-zinc-800 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 px-5 py-3">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
+                📝 {showTemplateVarModal.name}
+              </h3>
+              <button onClick={() => setShowTemplateVarModal(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg">×</button>
+            </div>
+            <div className="p-5 space-y-3">
+              {showTemplateVarModal.variables.map((v: any) => (
+                <div key={v.name}>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                    {`{{${v.name}}}`} {v.required && <span className="text-red-500">*</span>}
+                    {v.description && <span className="font-normal text-zinc-400"> — {v.description}</span>}
+                  </label>
+                  {v.type === "enum" && v.options ? (
+                    <select
+                      value={templateVarValues[v.name] || ""}
+                      onChange={(e) => setTemplateVarValues({ ...templateVarValues, [v.name]: e.target.value })}
+                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-1.5 text-sm text-zinc-900 dark:text-white"
+                    >
+                      {v.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : v.type === "text" ? (
+                    <textarea
+                      value={templateVarValues[v.name] || ""}
+                      onChange={(e) => setTemplateVarValues({ ...templateVarValues, [v.name]: e.target.value })}
+                      rows={2}
+                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-1.5 text-sm text-zinc-900 dark:text-white"
+                    />
+                  ) : (
+                    <input
+                      type={v.type === "number" ? "number" : v.type === "date" ? "date" : "text"}
+                      value={templateVarValues[v.name] || ""}
+                      onChange={(e) => setTemplateVarValues({ ...templateVarValues, [v.name]: e.target.value })}
+                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-1.5 text-sm text-zinc-900 dark:text-white"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-zinc-700 px-5 py-3">
+              <button
+                onClick={() => setShowTemplateVarModal(null)}
+                className="rounded-md border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyTemplateVars}
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+              >
+                Apply to Prompt
               </button>
             </div>
           </div>
