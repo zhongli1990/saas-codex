@@ -21,9 +21,11 @@ from sqlalchemy import select
 
 from .database import engine, async_session_maker, Base, get_db
 from .repositories import WorkspaceRepository, SessionRepository, RunRepository, MessageRepository
-from .models import User
+from .models import User, Workspace
 from .auth.router import router as auth_router
 from .auth.security import get_password_hash
+from .auth.dependencies import get_current_user, get_current_user_optional
+from .auth.rbac import tenant_filter, is_super_admin, has_min_role
 from .admin.router import router as admin_router
 
 
@@ -114,7 +116,8 @@ def _is_valid_uuid(val: str) -> bool:
 
 
 async def create_initial_admin():
-    """Create initial admin user if none exists."""
+    """Create initial admin user if none exists, and seed sample tenants/groups."""
+    from .models import Tenant, Group, UserGroup
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@saas-codex.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
     
@@ -126,13 +129,54 @@ async def create_initial_admin():
             admin = User(
                 email=admin_email,
                 password_hash=get_password_hash(admin_password),
-                display_name="Administrator",
+                display_name="Platform Admin",
                 status="active",
-                role="admin"
+                role="super_admin"
             )
             db.add(admin)
             await db.commit()
             print(f"Created initial admin user: {admin_email}")
+        else:
+            # Migrate legacy 'admin' role to 'super_admin'
+            if existing.role == "admin":
+                existing.role = "super_admin"
+                await db.commit()
+                print(f"Migrated admin role to super_admin: {admin_email}")
+        
+        # Seed sample tenants if none exist
+        tenant_result = await db.execute(select(Tenant))
+        if not tenant_result.scalars().first():
+            nhs_tenant = Tenant(
+                name="NHS Birmingham Trust",
+                slug="nhs-birmingham",
+                status="active",
+                metadata_json={"type": "healthcare", "region": "West Midlands"}
+            )
+            enterprise_tenant = Tenant(
+                name="Enterprise Corp",
+                slug="enterprise-corp",
+                status="active",
+                metadata_json={"type": "enterprise", "industry": "technology"}
+            )
+            db.add_all([nhs_tenant, enterprise_tenant])
+            await db.flush()
+            
+            # Seed groups for each tenant
+            nhs_groups = [
+                Group(tenant_id=nhs_tenant.id, name="Administrators", description="Org Admins for NHS Trust"),
+                Group(tenant_id=nhs_tenant.id, name="Clinical Leads", description="Clinical oversight and compliance"),
+                Group(tenant_id=nhs_tenant.id, name="Developers", description="Development team"),
+                Group(tenant_id=nhs_tenant.id, name="Sales", description="Sales and pre-sales team"),
+            ]
+            enterprise_groups = [
+                Group(tenant_id=enterprise_tenant.id, name="Administrators", description="Org Admins for Enterprise Corp"),
+                Group(tenant_id=enterprise_tenant.id, name="Architecture", description="Solution architects"),
+                Group(tenant_id=enterprise_tenant.id, name="Developers", description="Development team"),
+                Group(tenant_id=enterprise_tenant.id, name="Stakeholders", description="View-only stakeholders"),
+            ]
+            db.add_all(nhs_groups + enterprise_groups)
+            await db.commit()
+            print("Seeded sample tenants and groups")
 
 
 @asynccontextmanager
@@ -324,7 +368,8 @@ async def health() -> dict[str, str]:
 @app.post("/api/workspaces/import", response_model=WorkspaceResponse)
 async def import_workspace(
     req: ImportWorkspaceRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_optional),
 ) -> WorkspaceResponse:
     repo = WorkspaceRepository(db)
     
@@ -369,7 +414,8 @@ async def import_workspace(
         source_type=req.source_type,
         source_uri=req.source_uri,
         display_name=display_name,
-        local_path=local_path
+        local_path=local_path,
+        tenant_id=user.tenant_id if user else None,
     )
 
     return WorkspaceResponse(
@@ -441,7 +487,8 @@ async def scan_workspaces(db: AsyncSession = Depends(get_db)) -> ScanWorkspacesR
 @app.post("/api/workspaces/import-local", response_model=WorkspaceResponse)
 async def import_local_workspace(
     req: ImportLocalRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_optional),
 ) -> WorkspaceResponse:
     """Import a manually copied local folder as a workspace."""
     folder_path = pathlib.Path(WORKSPACES_ROOT) / req.folder_name / "repo"
@@ -496,7 +543,8 @@ async def import_local_workspace(
         source_type=source_type,
         source_uri=source_uri,
         display_name=display_name,
-        local_path=local_path
+        local_path=local_path,
+        tenant_id=user.tenant_id if user else None,
     )
     
     return WorkspaceResponse(
@@ -510,9 +558,16 @@ async def import_local_workspace(
 
 
 @app.get("/api/workspaces", response_model=WorkspaceListResponse)
-async def list_workspaces(db: AsyncSession = Depends(get_db)) -> WorkspaceListResponse:
-    repo = WorkspaceRepository(db)
-    workspaces = await repo.list_all()
+async def list_workspaces(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_optional),
+) -> WorkspaceListResponse:
+    # Apply tenant-scoped filtering if user is authenticated
+    query = select(Workspace).order_by(Workspace.created_at.desc())
+    if user:
+        query = tenant_filter(query, Workspace, user)
+    result = await db.execute(query)
+    workspaces = list(result.scalars().all())
     # Filter to only include workspaces whose folders still exist on disk
     items = [
         WorkspaceResponse(
@@ -602,7 +657,8 @@ async def list_workspace_sessions(
 @app.post("/api/sessions", response_model=CreateSessionResponse)
 async def create_session(
     req: CreateSessionRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_optional),
 ) -> CreateSessionResponse:
     ws_repo = WorkspaceRepository(db)
     session_repo = SessionRepository(db)
@@ -636,7 +692,8 @@ async def create_session(
             source_type="github",
             source_uri=req.repo_url,
             display_name=_derive_display_name("github", req.repo_url),
-            local_path=repo_path
+            local_path=repo_path,
+            tenant_id=user.tenant_id if user else None,
         )
         workspace_id_uuid = workspace.id
     else:
@@ -661,7 +718,8 @@ async def create_session(
         workspace_id=workspace_id_uuid,
         runner_type=req.runner_type,
         runner_thread_id=thread_id,
-        working_directory=repo_path
+        working_directory=repo_path,
+        tenant_id=user.tenant_id if user else None,
     )
 
     return CreateSessionResponse(

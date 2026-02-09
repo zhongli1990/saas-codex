@@ -102,6 +102,9 @@ function CodexPageContent() {
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const [streamingText, setStreamingText] = useState("");
+  const [activeToolCall, setActiveToolCall] = useState<{name: string; input?: any} | null>(null);
 
   // Template picker state
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
@@ -467,11 +470,121 @@ function CodexPageContent() {
     }
   }
 
+  // Cleanup EventSource on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Persist runId to sessionStorage so it survives hard refresh
+  useEffect(() => {
+    if (runId) {
+      sessionStorage.setItem("codex-active-run", runId);
+    }
+  }, [runId]);
+
+  // On mount: recover active run from sessionStorage if context was lost
+  useEffect(() => {
+    if (!runId && status === "idle") {
+      const savedRunId = sessionStorage.getItem("codex-active-run");
+      if (savedRunId) {
+        setRunId(savedRunId);
+        setStatus("running");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Recover session: if status is running but no EventSource, reconnect to live stream
+  // The runner buffers all events, so reconnecting replays everything + gets live updates
+  useEffect(() => {
+    if (status === "running" && !eventSourceRef.current && runId) {
+      // Try to reconnect to the live SSE stream (runner replays buffered events)
+      const es = new EventSource(`/api/runs/${runId}/events`);
+      eventSourceRef.current = es;
+      let reconnectedText = "";
+
+      es.onmessage = (msg) => {
+        try {
+          const parsed = JSON.parse(msg.data);
+          setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: parsed }]);
+
+          if (parsed.type === "ui.message.assistant.delta") {
+            reconnectedText += parsed.payload?.textDelta || "";
+            setStreamingText(reconnectedText);
+          } else if (parsed.type === "ui.message.assistant.final") {
+            setStreamingText("");
+            setActiveToolCall(null);
+            reconnectedText = "";
+          } else if (parsed.type === "ui.tool.call" || parsed.type === "ui.tool.call.start") {
+            setActiveToolCall({ name: parsed.payload?.toolName || "tool", input: parsed.payload?.input });
+            setStreamingText("");
+          } else if (parsed.type === "ui.tool.result") {
+            setActiveToolCall(null);
+          } else if (parsed.type === "run.completed" || parsed.type === "stream.closed") {
+            setStatus("completed");
+            setStreamingText("");
+            setActiveToolCall(null);
+            sessionStorage.removeItem("codex-active-run");
+            es.close();
+            eventSourceRef.current = null;
+          } else if (parsed.type === "error") {
+            setStatus(`error: ${parsed.payload?.message || parsed.message || "unknown"}`);
+            setStreamingText("");
+            setActiveToolCall(null);
+            sessionStorage.removeItem("codex-active-run");
+            es.close();
+            eventSourceRef.current = null;
+          }
+        } catch {}
+      };
+
+      es.onerror = () => {
+        es.close();
+        eventSourceRef.current = null;
+        // Fallback: try to load completed events from DB
+        (async () => {
+          try {
+            const r = await fetch(`/api/runs/${runId}/detail`);
+            if (r.ok) {
+              const data = await r.json();
+              if (data.events && data.events.length > 0) {
+                setEvents(data.events);
+                setStatus("completed");
+              } else {
+                setStatus("stream-closed");
+              }
+            } else {
+              setStatus("stream-closed");
+            }
+          } catch {
+            setStatus("stream-closed");
+          }
+          setStreamingText("");
+          setActiveToolCall(null);
+          sessionStorage.removeItem("codex-active-run");
+        })();
+      };
+    }
+  }, [status, runId, setEvents, setStatus]);
+
   async function onRunPrompt() {
     if (!sessionId) return;
 
+    // Close any existing EventSource
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
     setStatus("running");
     setEvents([]);
+    setStreamingText("");
+    setActiveToolCall(null);
 
     // Persist user message to database
     await fetch(`/api/sessions/${sessionId}/messages`, {
@@ -499,17 +612,57 @@ function CodexPageContent() {
     const toolMessages: Array<{ role: string; content: string; metadata?: any }> = [];
 
     const es = new EventSource(`/api/runs/${nextRunId}/events`);
+    eventSourceRef.current = es;
     es.onmessage = (msg) => {
       try {
         const parsed = JSON.parse(msg.data);
         setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: parsed }]);
 
-        // Capture assistant content and tool calls for persistence
-        if (parsed.type === "item.completed" && parsed.item) {
+        // === Codex SDK events: item.started / item.updated / item.completed ===
+        if (parsed.type === "item.started" && parsed.item) {
+          const item = parsed.item;
+          if (item.type === "reasoning") {
+            setStreamingText(item.text || "");
+          } else if (item.type === "command_execution") {
+            setActiveToolCall({ name: "shell", input: item.command });
+            setStreamingText("");
+          } else if (item.type === "file_change") {
+            const files = (item.changes || []).map((c: any) => `${c.kind}: ${c.path}`).join(", ");
+            setActiveToolCall({ name: "file_edit", input: files });
+            setStreamingText("");
+          } else if (item.type === "mcp_tool_call") {
+            setActiveToolCall({ name: `${item.server}/${item.tool}`, input: item.arguments });
+            setStreamingText("");
+          } else if (item.type === "todo_list") {
+            const plan = (item.items || []).map((t: any) => `${t.completed ? "✅" : "⬜"} ${t.text}`).join("\n");
+            setStreamingText(plan);
+          } else if (item.type === "agent_message") {
+            setStreamingText(item.text || "");
+          }
+        } else if (parsed.type === "item.updated" && parsed.item) {
+          const item = parsed.item;
+          if (item.type === "command_execution") {
+            setActiveToolCall({ name: "shell", input: item.command });
+            if (item.aggregated_output) {
+              setStreamingText(item.aggregated_output.slice(-2000));
+            }
+          } else if (item.type === "reasoning") {
+            setStreamingText(item.text || "");
+          } else if (item.type === "agent_message") {
+            setStreamingText(item.text || "");
+          } else if (item.type === "todo_list") {
+            const plan = (item.items || []).map((t: any) => `${t.completed ? "✅" : "⬜"} ${t.text}`).join("\n");
+            setStreamingText(plan);
+          }
+        } else if (parsed.type === "item.completed" && parsed.item) {
           const item = parsed.item;
           if (item.type === "agent_message" && item.text) {
             assistantContent = item.text;
+            setStreamingText("");
+            setActiveToolCall(null);
           } else if (item.type === "command_execution") {
+            setActiveToolCall(null);
+            setStreamingText("");
             toolMessages.push({
               role: "tool",
               content: "shell",
@@ -519,10 +672,46 @@ function CodexPageContent() {
                 tool_output: item.aggregated_output || `Exit code: ${item.exit_code}`
               }
             });
+          } else if (item.type === "file_change") {
+            setActiveToolCall(null);
+            setStreamingText("");
+            toolMessages.push({
+              role: "tool",
+              content: "file_edit",
+              metadata: {
+                tool_name: "file_edit",
+                tool_input: (item.changes || []).map((c: any) => `${c.kind}: ${c.path}`).join("\n"),
+                tool_output: `Status: ${item.status}`
+              }
+            });
+          } else if (item.type === "mcp_tool_call") {
+            setActiveToolCall(null);
+            setStreamingText("");
+            toolMessages.push({
+              role: "tool",
+              content: item.tool || "mcp_tool",
+              metadata: {
+                tool_name: `${item.server}/${item.tool}`,
+                tool_input: item.arguments,
+                tool_output: item.result || item.error?.message || "completed"
+              }
+            });
+          } else if (item.type === "reasoning" || item.type === "todo_list") {
+            setStreamingText("");
           }
+        // === Claude runner events: ui.message.* / ui.tool.* ===
+        } else if (parsed.type === "ui.message.assistant.delta") {
+          // Show streaming text in real-time
+          setStreamingText(prev => prev + (parsed.payload?.textDelta || ""));
         } else if (parsed.type === "ui.message.assistant.final") {
           assistantContent = parsed.payload?.text || assistantContent;
+          setStreamingText("");
+          setActiveToolCall(null);
+        } else if (parsed.type === "ui.tool.call" || parsed.type === "ui.tool.call.start") {
+          setActiveToolCall({ name: parsed.payload?.toolName || "tool", input: parsed.payload?.input });
+          setStreamingText("");
         } else if (parsed.type === "ui.tool.result") {
+          setActiveToolCall(null);
           toolMessages.push({
             role: "tool",
             content: parsed.payload?.toolName || "tool",
@@ -535,7 +724,11 @@ function CodexPageContent() {
 
         if (parsed.type === "run.completed" || parsed.type === "stream.closed") {
           setStatus("completed");
+          setStreamingText("");
+          setActiveToolCall(null);
+          sessionStorage.removeItem("codex-active-run");
           es.close();
+          eventSourceRef.current = null;
           
           // Persist assistant and tool messages to database
           (async () => {
@@ -565,7 +758,11 @@ function CodexPageContent() {
           })();
         } else if (parsed.type === "error") {
           setStatus(`error: ${parsed.payload?.message || parsed.message || "unknown"}`);
+          setStreamingText("");
+          setActiveToolCall(null);
+          sessionStorage.removeItem("codex-active-run");
           es.close();
+          eventSourceRef.current = null;
         }
       } catch {
         setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: msg.data }]);
@@ -573,8 +770,25 @@ function CodexPageContent() {
     };
     es.onerror = () => {
       es.close();
+      eventSourceRef.current = null;
+      setStreamingText("");
+      setActiveToolCall(null);
       if (status === "running") {
-        setStatus("stream-closed");
+        // Try to recover from DB after a short delay
+        setTimeout(async () => {
+          try {
+            const r = await fetch(`/api/runs/${nextRunId}/detail`);
+            if (r.ok) {
+              const data = await r.json();
+              if (data.events && data.events.length > 0) {
+                setEvents(data.events);
+                setStatus("completed");
+                return;
+              }
+            }
+          } catch {}
+          setStatus("stream-closed");
+        }, 1000);
       }
     };
   }
@@ -1072,13 +1286,48 @@ function CodexPageContent() {
                 ))
                 }
                 {status === "running" && (
-                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg mr-8">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
-                    </div>
-                    <span className="text-sm text-blue-700">Agent is working...</span>
+                  <div className="space-y-2">
+                    {/* Show streaming assistant text as it arrives */}
+                    {streamingText && (
+                      <div className="rounded-lg p-3 bg-white border border-zinc-200 mr-8">
+                        <div className="text-xs font-medium text-zinc-500 mb-1 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                          Assistant is typing...
+                        </div>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {streamingText}
+                          </ReactMarkdown>
+                          <span className="inline-block w-2 h-4 bg-zinc-400 animate-pulse ml-0.5"></span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Show active tool call */}
+                    {activeToolCall && (
+                      <div className="rounded-lg p-3 bg-amber-50 border border-amber-200 mx-4">
+                        <div className="text-xs font-medium text-amber-700 flex items-center gap-2">
+                          <span className="animate-spin inline-block w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full"></span>
+                          Running: <span className="font-mono bg-amber-100 px-1.5 py-0.5 rounded">{activeToolCall.name}</span>
+                        </div>
+                        {activeToolCall.input && (
+                          <pre className="mt-1 text-[10px] font-mono text-amber-600 max-h-20 overflow-y-auto">
+                            {typeof activeToolCall.input === "string" ? activeToolCall.input : JSON.stringify(activeToolCall.input, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+                    {/* Show thinking indicator when no streaming content yet */}
+                    {!streamingText && !activeToolCall && (
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="flex items-center gap-1 text-2xl mb-2">
+                          <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🤖</span>
+                          <span className="animate-bounce" style={{ animationDelay: "150ms" }}>💭</span>
+                          <span className="animate-bounce" style={{ animationDelay: "300ms" }}>⚡</span>
+                        </div>
+                        <div className="text-sm text-zinc-600 font-medium">Agent is thinking...</div>
+                        <div className="text-xs text-zinc-400 mt-1">Processing your request</div>
+                      </div>
+                    )}
                   </div>
                 )}
                 </>

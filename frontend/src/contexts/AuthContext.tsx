@@ -1,13 +1,15 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { User, getMe, login as apiLogin, logout as apiLogout, removeToken } from "@/lib/auth";
+import { User, getMe, login as apiLogin, logout as apiLogout, removeToken, isAdminRole, hasMinRole as hasMinRoleFn, isSuperAdmin as isSuperAdminFn } from "@/lib/auth";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  hasMinRole: (minRole: string) => boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -51,7 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     isAuthenticated: !!user,
-    isAdmin: user?.role === "admin",
+    isAdmin: isAdminRole(user?.role),
+    isSuperAdmin: isSuperAdminFn(user?.role),
+    hasMinRole: (minRole: string) => hasMinRoleFn(user?.role, minRole),
     login,
     logout,
     refreshUser,

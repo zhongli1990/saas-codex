@@ -11,7 +11,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { getToken } from "@/lib/auth";
 
 interface SampleUser {
   id: string;
@@ -185,8 +186,64 @@ interface SettingsMenuProps {
 
 export default function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
   const [activeTab, setActiveTab] = useState<"users" | "groups" | "rbac">("users");
+  const [liveUsers, setLiveUsers] = useState<SampleUser[] | null>(null);
+  const [liveGroups, setLiveGroups] = useState<UserGroup[] | null>(null);
+  const [liveTenants, setLiveTenants] = useState<{id: string; name: string; slug: string}[]>([]);
+  const [rbacSummary, setRbacSummary] = useState<{roles: Record<string, number>; tenant_count: number; group_count: number; valid_roles: string[]} | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLiveData = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [usersRes, tenantsRes, groupsRes, rbacRes] = await Promise.all([
+        fetch("/api/admin/users", { headers }),
+        fetch("/api/admin/tenants", { headers }),
+        fetch("/api/admin/groups", { headers }),
+        fetch("/api/admin/rbac/summary", { headers }),
+      ]);
+      if (usersRes.ok) {
+        const users = await usersRes.json();
+        setLiveUsers(users.map((u: any) => ({
+          id: u.id,
+          email: u.email,
+          displayName: u.display_name || u.email,
+          role: u.role,
+          tenant: u.tenant_id || "Platform",
+          groups: [],
+          status: u.status,
+        })));
+      }
+      if (tenantsRes.ok) setLiveTenants(await tenantsRes.json());
+      if (groupsRes.ok) {
+        const groups = await groupsRes.json();
+        setLiveGroups(groups.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          description: g.description || "",
+          permissions: [],
+        })));
+      }
+      if (rbacRes.ok) setRbacSummary(await rbacRes.json());
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) fetchLiveData();
+  }, [isOpen, fetchLiveData]);
 
   if (!isOpen) return null;
+
+  // Use live data if available, fall back to static samples
+  const displayUsers = liveUsers || sampleUsers;
+  const displayGroups = liveGroups || userGroups;
+
+  // Resolve tenant names for live users
+  const tenantNameMap: Record<string, string> = {};
+  for (const t of liveTenants) tenantNameMap[t.id] = t.name;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -273,7 +330,10 @@ export default function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700">
-                  {sampleUsers.map((user) => (
+                  {loading && (
+                    <tr><td colSpan={5} className="py-4 text-center text-sm text-zinc-500">Loading live data...</td></tr>
+                  )}
+                  {displayUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
                       <td className="py-3">
                         <div>
@@ -286,7 +346,9 @@ export default function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
                           {roleLabels[user.role]}
                         </span>
                       </td>
-                      <td className="py-3 text-zinc-600 dark:text-zinc-400">{user.tenant}</td>
+                      <td className="py-3 text-zinc-600 dark:text-zinc-400">
+                        {tenantNameMap[user.tenant] || user.tenant}
+                      </td>
                       <td className="py-3">
                         <div className="flex flex-wrap gap-1">
                           {user.groups.map((group) => (
@@ -314,7 +376,7 @@ export default function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
 
           {activeTab === "groups" && (
             <div className="grid gap-4 md:grid-cols-2">
-              {userGroups.map((group) => (
+              {displayGroups.map((group) => (
                 <div
                   key={group.id}
                   className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"

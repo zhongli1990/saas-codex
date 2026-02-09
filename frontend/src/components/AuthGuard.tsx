@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getToken, getMe, User } from "@/lib/auth";
+import { getToken, getMe, User, isAdminRole } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/register", "/pending"];
 
@@ -49,7 +49,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         }
 
         // Check admin routes
-        if (pathname.startsWith("/admin") && user.role !== "admin") {
+        if (pathname.startsWith("/admin") && !isAdminRole(user.role)) {
           router.replace("/dashboard");
           return;
         }

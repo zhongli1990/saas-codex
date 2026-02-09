@@ -1,5 +1,123 @@
 # Release Notes
 
+## v0.7.0 — RBAC Phase 1 + E2E Streaming (Feb 9, 2026)
+
+Release name: **rbac-streaming**
+
+**Status**: ✅ Released  
+**Branch**: `feature/rbac-streaming-v07`
+
+### Highlights
+
+- **5-role RBAC system** with tenant-scoped resource filtering — `super_admin → org_admin → project_admin → editor → viewer`
+- **Tenant-scoped API filtering** — non-super-admins only see their own tenant's resources + platform resources
+- **Real-time SSE streaming** — full support for both OpenAI Codex SDK and Claude Anthropic SDK streaming events
+- **Session persistence** — active runs survive page navigation and browser refresh via `sessionStorage` + SSE reconnect
+- **Role-gated UI** — sidebar admin tabs, user management columns, and action buttons filtered by role level
+
+### RBAC System
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Migration 005 | ✅ | Expand `User.role` constraint to 5 roles, auto-migrate legacy `admin`→`super_admin`, `user`→`editor` |
+| `rbac.py` module | ✅ | `tenant_filter()`, `has_min_role()`, `require_role()` factory, `is_super_admin()` |
+| Tenant seeding | ✅ | 2 sample tenants (NHS Birmingham Trust, Enterprise Corp) + 8 groups on startup |
+| JWT claims | ✅ | `tenant_id` included in JWT payload for all authenticated users |
+| Workspace list | ✅ | Tenant-scoped via `tenant_filter()` — super_admin sees all |
+| Resource auto-tagging | ✅ | Workspace/session creation auto-sets `tenant_id` from current user |
+| Admin users scoping | ✅ | Org admins see only their own tenant's users |
+| prompt-manager auth | ✅ | `is_admin` updated to accept `super_admin`, `org_admin` roles |
+| Change role endpoint | ✅ | `POST /api/admin/users/{id}/role` with role hierarchy enforcement |
+| Assign tenant endpoint | ✅ | `POST /api/admin/users/{id}/tenant` (super_admin only) |
+
+### E2E Streaming Architecture
+
+Both runners stream events in real-time through a unified SSE pipeline:
+
+```
+Runner (Codex/Claude) → Backend (httpx proxy) → Frontend (EventSource)
+```
+
+| Runner | SDK | Streaming Method | Event Types |
+|--------|-----|-----------------|-------------|
+| **Codex** (`runner/`) | `@openai/codex-sdk` | `thread.runStreamed()` → `AsyncGenerator<ThreadEvent>` | `item.started`, `item.updated`, `item.completed` |
+| **Claude** (`claude-runner/`) | `anthropic` | `client.messages.stream()` | `ui.message.assistant.delta`, `ui.tool.call`, `ui.tool.result` |
+
+#### Codex SDK Event Types (Now Rendered in UI)
+
+| Item Type | UI Display |
+|-----------|-----------|
+| `reasoning` | Agent's thinking text (streaming) |
+| `command_execution` | Live shell command + stdout/stderr |
+| `file_change` | Files being added/deleted/updated |
+| `mcp_tool_call` | MCP tool invocations with args + results |
+| `todo_list` | Agent's checklist plan (✅/⬜ items) |
+| `agent_message` | Final markdown response |
+
+#### Claude Runner Event Types
+
+| Event Type | UI Display |
+|-----------|-----------|
+| `ui.message.assistant.delta` | Token-by-token text streaming |
+| `ui.tool.call.start` / `ui.tool.call` | Active tool with spinner + input |
+| `ui.tool.result` | Tool execution result |
+| `ui.message.assistant.final` | Complete markdown response |
+
+### Session Persistence
+
+| Scenario | Mechanism |
+|----------|-----------|
+| Navigate away and back (SPA) | `AppContext` preserves `runId`/`status`; reconnects to live SSE stream |
+| Hard browser refresh | `sessionStorage` recovers `runId`; reconnects to SSE (runner replays buffer) |
+| Run completes while away | SSE replay delivers all buffered events, then `stream.closed` |
+
+### Frontend
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| `AuthProvider` wrapper | ✅ | `providers.tsx` wraps root layout — fixes `useAuth` crash |
+| Role helpers | ✅ | `hasMinRole()`, `isSuperAdmin()`, `isAdminRole()` in `lib/auth.ts` |
+| AuthContext | ✅ | Exposes `isSuperAdmin`, `hasMinRole()` to all components |
+| Sidebar role gating | ✅ | Admin items filtered by `minRole` (Skills→`project_admin+`, Users/Hooks→`org_admin+`) |
+| Admin Users page | ✅ | Role dropdown (5 roles), tenant dropdown (super_admin only), color-coded badges |
+| Codex event rendering | ✅ | `item.started/updated/completed` for reasoning, commands, file changes, todo lists |
+| Claude event rendering | ✅ | `ui.message.assistant.delta` for token-by-token streaming |
+| SSE reconnect | ✅ | `sessionStorage` persistence + live stream reconnection on page return |
+
+### Bug Fixes
+
+- **User Management crash** — `useAuth()` called outside `AuthProvider`; fixed by adding `providers.tsx` client wrapper to root layout
+- **Admin tabs missing** — `super_admin`/`org_admin` roles not recognized; fixed with `isAdminRole()` helper
+- **Role change `[object Object]`** — error detail safely stringified in alert dialog
+- **prompt-manager `is_admin`** — updated to accept new RBAC roles
+
+### Database Changes
+
+- **Migration 005** (`005_expand_rbac_roles.py`): Expand `chk_role` constraint to `(super_admin, org_admin, project_admin, editor, viewer)`, migrate existing data
+- **No new tables** — all tenant/group/workspace_access tables already existed from v0.4.0
+
+### Design Documents
+
+- **`RBAC_Design.md`** — Merged and consolidated from two separate docs into single master reference
+
+### New/Modified Files
+
+| File | Change |
+|------|--------|
+| `backend/app/auth/rbac.py` | Rewritten: `tenant_filter()`, `has_min_role()`, `require_role()` |
+| `backend/alembic/versions/005_expand_rbac_roles.py` | New migration |
+| `frontend/src/app/providers.tsx` | New: client-side `AuthProvider` wrapper |
+| `frontend/src/app/layout.tsx` | Wrap children in `<Providers>` |
+| `frontend/src/lib/auth.ts` | Added `hasMinRole()`, `isSuperAdmin()`, role hierarchy |
+| `frontend/src/contexts/AuthContext.tsx` | Expose `isSuperAdmin`, `hasMinRole` |
+| `frontend/src/components/Sidebar.tsx` | Role-gated admin items with `minRole` |
+| `frontend/src/app/(app)/admin/users/page.tsx` | Role/tenant dropdowns, super_admin gating |
+| `frontend/src/app/(app)/codex/page.tsx` | Codex SDK event handling, SSE reconnect, sessionStorage |
+| `prompt-manager/app/auth.py` | Fix `is_admin`/`is_super_admin` for new roles |
+| `docs/RBAC_Design.md` | Consolidated master RBAC design doc |
+
+---
+
 ## v0.6.9 — Prompt & Skills Manager (Feb 9, 2026)
 
 Release name: **prompt-skills-manager**

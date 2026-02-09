@@ -24,6 +24,7 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     """User response (public fields only)."""
     id: UUID
+    tenant_id: Optional[UUID] = None
     email: str
     mobile: Optional[str] = None
     display_name: Optional[str] = None

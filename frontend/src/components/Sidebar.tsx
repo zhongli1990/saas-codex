@@ -14,7 +14,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getMe, logout, User } from "@/lib/auth";
+import { getMe, logout, User, hasMinRole } from "@/lib/auth";
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -25,10 +25,11 @@ const items = [
   { href: "/settings", label: "Settings", icon: "⚙️" }
 ];
 
+// Admin items with minimum role required to see each
 const adminItems = [
-  { href: "/admin/users", label: "User Management", icon: "👥" },
-  { href: "/admin/skills", label: "Skills", icon: "🛠️" },
-  { href: "/admin/hooks", label: "Hooks", icon: "🔗" }
+  { href: "/admin/users", label: "User Management", icon: "👥", minRole: "org_admin" },
+  { href: "/admin/skills", label: "Skills", icon: "🛠️", minRole: "project_admin" },
+  { href: "/admin/hooks", label: "Hooks", icon: "🔗", minRole: "org_admin" }
 ];
 
 interface SidebarProps {
@@ -50,7 +51,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     router.push("/login");
   };
 
-  const isAdmin = user?.role === "admin";
+  // Filter admin items to only those the user's role can access
+  const visibleAdminItems = adminItems.filter(i => hasMinRole(user?.role, i.minRole));
 
   return (
     <div className={`flex h-full flex-col p-4 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
@@ -92,11 +94,11 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           );
         })}
 
-        {isAdmin && (
+        {visibleAdminItems.length > 0 && (
           <>
             <div className="my-2 border-t border-zinc-200 dark:border-zinc-700" />
             {!collapsed && <div className="px-3 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">Admin</div>}
-            {adminItems.map((i) => {
+            {visibleAdminItems.map((i) => {
               const active = pathname === i.href || pathname.startsWith(i.href);
               const baseClass = "rounded-md px-3 py-2 text-sm flex items-center gap-2 transition-colors";
               const activeClass = "bg-zinc-200 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white";

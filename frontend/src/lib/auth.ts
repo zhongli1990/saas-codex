@@ -6,6 +6,7 @@ const API_BASE = "/api";
 
 export interface User {
   id: string;
+  tenant_id: string | null;
   email: string;
   mobile: string | null;
   display_name: string | null;
@@ -96,4 +97,32 @@ export async function getMe(): Promise<User | null> {
 
 export function logout(): void {
   removeToken();
+}
+
+/** Roles that grant admin-level access (sidebar tabs, /admin routes) */
+const ADMIN_ROLES = ["admin", "super_admin", "org_admin"];
+
+export function isAdminRole(role: string | undefined | null): boolean {
+  return !!role && ADMIN_ROLES.includes(role);
+}
+
+/** Role hierarchy levels — higher number = more privileges */
+const ROLE_LEVELS: Record<string, number> = {
+  super_admin: 5,
+  admin: 5,
+  org_admin: 4,
+  project_admin: 3,
+  editor: 2,
+  viewer: 1,
+};
+
+/** Check if user's role meets or exceeds a minimum role level */
+export function hasMinRole(userRole: string | undefined | null, minRole: string): boolean {
+  if (!userRole) return false;
+  return (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS[minRole] || 0);
+}
+
+/** Check if user is a super admin (sees all tenants/resources) */
+export function isSuperAdmin(role: string | undefined | null): boolean {
+  return role === "super_admin" || role === "admin";
 }
