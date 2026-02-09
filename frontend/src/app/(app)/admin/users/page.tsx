@@ -131,13 +131,17 @@ export default function UserManagementPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.detail || "Failed to change role");
+        let msg = "Failed to change role";
+        try {
+          const data = await res.json();
+          msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+        } catch {}
+        alert(msg);
         return;
       }
       await fetchUsers();
-    } catch {
-      alert("Failed to change role");
+    } catch (e: any) {
+      alert("Failed to change role: " + (e?.message || String(e)));
     } finally {
       setActionLoading(null);
     }
@@ -153,13 +157,17 @@ export default function UserManagementPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.detail || "Failed to assign tenant");
+        let msg = "Failed to assign tenant";
+        try {
+          const data = await res.json();
+          msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+        } catch {}
+        alert(msg);
         return;
       }
       await fetchUsers();
-    } catch {
-      alert("Failed to assign tenant");
+    } catch (e: any) {
+      alert("Failed to assign tenant: " + (e?.message || String(e)));
     } finally {
       setActionLoading(null);
     }
