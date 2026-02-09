@@ -27,11 +27,11 @@ class CurrentUser:
 
     @property
     def is_admin(self) -> bool:
-        return self.role == "admin"
+        return self.role in ("admin", "super_admin", "org_admin")
 
     @property
     def is_super_admin(self) -> bool:
-        return self.role == "admin" and self.tenant_id is None
+        return self.role in ("admin", "super_admin")
 
 
 async def get_current_user(

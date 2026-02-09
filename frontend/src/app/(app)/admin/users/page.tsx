@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { User, getToken } from "@/lib/auth";
+import { User, getToken, isSuperAdmin as isSuperAdminFn } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 type UserStatus = "pending" | "active" | "inactive" | "rejected";
 type UserRole = "super_admin" | "org_admin" | "project_admin" | "editor" | "viewer";
@@ -42,6 +43,8 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function UserManagementPage() {
+  const { user: currentUser } = useAuth();
+  const currentIsSuperAdmin = isSuperAdminFn(currentUser?.role);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -230,9 +233,11 @@ export default function UserManagementPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                   Role
                 </th>
+                {currentIsSuperAdmin && (
                 <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                   Tenant
                 </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                   Registered
                 </th>
@@ -274,6 +279,7 @@ export default function UserManagementPage() {
                       )}
                     </select>
                   </td>
+                  {currentIsSuperAdmin && (
                   <td className="px-4 py-3">
                     <select
                       value={user.tenant_id || ""}
@@ -287,6 +293,7 @@ export default function UserManagementPage() {
                       ))}
                     </select>
                   </td>
+                  )}
                   <td className="px-4 py-3 text-sm text-zinc-500">
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>

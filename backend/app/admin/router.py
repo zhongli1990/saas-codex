@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models import User
 from ..auth.dependencies import require_admin, require_super_admin
+from ..auth.rbac import is_super_admin
 from ..auth.schemas import UserResponse
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -22,10 +23,13 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
-    """List all users, optionally filtered by status."""
+    """List users. Super admin sees all; org_admin sees own tenant only."""
     query = select(User).order_by(User.created_at.desc())
     if status_filter:
         query = query.where(User.status == status_filter)
+    # Org admins only see users in their own tenant
+    if not is_super_admin(admin) and admin.tenant_id:
+        query = query.where(User.tenant_id == admin.tenant_id)
     
     result = await db.execute(query)
     users = result.scalars().all()
