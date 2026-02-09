@@ -280,6 +280,104 @@ Workspace (Project)
 
 ---
 
-*Document Version: 1.0*
+## 9. E2E Streaming & Session Persistence (v0.7.0)
+
+### 9.1 Streaming Architecture
+
+```
+┌─────────────┐     POST /prompt      ┌──────────┐    POST /runs     ┌───────────────┐
+│  Frontend    │ ──────────────────▶   │  Backend  │ ──────────────▶  │  Runner        │
+│  (Next.js)  │                        │ (FastAPI) │                   │ (Codex/Claude) │
+│             │     GET /events (SSE)  │           │  GET /events(SSE)│               │
+│  EventSource│ ◀━━━━━━━━━━━━━━━━━━━━  │  httpx    │ ◀━━━━━━━━━━━━━━━│  LLM API       │
+│             │   real-time events     │  proxy    │   real-time      │  streaming     │
+└─────────────┘                        └──────────┘                   └───────────────┘
+```
+
+Both runners emit SSE events in real-time. The backend proxies them through to the frontend while persisting each event to the `run_events` table.
+
+### 9.2 Codex Runner Streaming (`runner/`)
+
+Uses `@openai/codex-sdk` with `thread.runStreamed(prompt)` which returns an `AsyncGenerator<ThreadEvent>`.
+
+**Event lifecycle**: `item.started` → `item.updated` (0..N) → `item.completed`
+
+| ThreadItem Type | Started | Updated | Completed |
+|-----------------|---------|---------|-----------|
+| `reasoning` | Shows thinking text | Text grows | Clears |
+| `command_execution` | Shows command | Live stdout/stderr | Captures exit code |
+| `file_change` | Shows files being edited | — | Captures add/delete/update status |
+| `mcp_tool_call` | Shows tool + args | — | Captures result/error |
+| `todo_list` | Shows plan checklist | Items update (✅/⬜) | Clears |
+| `agent_message` | Shows text | Text grows | Captures final response |
+
+### 9.3 Claude Runner Streaming (`claude-runner/`)
+
+Uses `anthropic` SDK with `client.messages.stream()` for true token-by-token streaming.
+
+| Event Type | UI Rendering |
+|-----------|-------------|
+| `ui.message.assistant.delta` | Appends `textDelta` to streaming text with blinking cursor |
+| `ui.tool.call.start` | Shows amber tool box with spinner |
+| `ui.tool.call` | Shows tool name + input |
+| `ui.tool.result` | Captures result, clears tool indicator |
+| `ui.message.assistant.final` | Clears streaming text (final captured for DB) |
+| `ui.iteration` | Shows agent loop progress (current/max) |
+
+### 9.4 Frontend Streaming UI Components
+
+The Agent Console renders streaming state with three visual elements:
+
+1. **Streaming text** — green pulsing dot + markdown rendered in real-time with blinking cursor
+2. **Active tool call** — amber box with spinner showing tool name + input preview
+3. **Thinking indicator** — bouncing robot emoji when waiting for first token
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 🟢 Assistant is responding...                        │
+│                                                       │
+│ I'll analyze the codebase structure first...          │
+│ █ (blinking cursor)                                   │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│ ⟳ Running: shell                                     │
+│   git log --oneline -5                               │
+└─────────────────────────────────────────────────────┘
+```
+
+### 9.5 Session Persistence
+
+Active runs survive user navigation through multiple mechanisms:
+
+| Layer | Mechanism | Survives |
+|-------|-----------|----------|
+| **React state** | `AppContext` holds `codexRunId`, `codexStatus`, `codexEvents` | SPA navigation (clicking tabs) |
+| **sessionStorage** | `codex-active-run` key stores active `runId` | Hard browser refresh |
+| **Runner buffer** | In-memory event buffer with pub/sub replay | EventSource disconnect/reconnect |
+| **Database** | `run_events` table persists all events | Runner restart (fallback) |
+
+**Reconnect flow** when user returns to Agent Console:
+1. Check `AppContext` for active `runId` with `status === "running"`
+2. If no context, check `sessionStorage` for saved `runId`
+3. Open new `EventSource` to `/api/runs/{runId}/events`
+4. Runner replays all buffered events, then streams live events
+5. If SSE fails, fall back to `GET /api/runs/{runId}/detail` for DB-persisted events
+
+### 9.6 Implementation Files
+
+| File | Role |
+|------|------|
+| `runner/src/server.ts` | Codex runner: `runStreamed()`, pub/sub buffer, SSE endpoint |
+| `claude-runner/app/agent.py` | Claude runner: `messages.stream()`, SSE event generation |
+| `claude-runner/app/main.py` | Claude runner: pub/sub buffer, SSE endpoint |
+| `backend/app/main.py` | Backend: `httpx` SSE proxy, event persistence to DB |
+| `frontend/src/app/(app)/codex/page.tsx` | Frontend: `EventSource`, event handling, streaming UI |
+| `frontend/src/contexts/AppContext.tsx` | React state: `codexRunId`, `codexStatus`, `codexEvents` |
+
+---
+
+*Document Version: 2.0*
 *Created: Jan 19, 2026*
+*Updated: Feb 9, 2026 — Added streaming architecture and session persistence (v0.7.0)*
 *Author: Cascade AI Assistant*

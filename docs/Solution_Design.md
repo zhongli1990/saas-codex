@@ -31,12 +31,19 @@ This repository is a small monorepo deployed via Docker Compose:
 Default host ports:
 - Frontend: `http://localhost:9100`
 - Backend: `http://localhost:9101`
-- Runner: `http://localhost:9102`
+- Runner (Codex): `http://localhost:9102`
 - Postgres: `localhost:9103`
+- Claude Runner: `http://localhost:9104`
+- Prompt Manager: `http://localhost:9105`
+- Evaluation: `http://localhost:9106`
+- Memory: `http://localhost:9107`
+- LLM Gateway: `http://localhost:9108`
 
 Container internal URLs:
 - Frontend calls backend via `BACKEND_URL=http://backend:8080`.
-- Backend calls runner via `RUNNER_URL=http://runner:8081`.
+- Backend calls Codex runner via `RUNNER_CODEX_URL=http://runner:8081`.
+- Backend calls Claude runner via `RUNNER_CLAUDE_URL=http://claude-runner:8082`.
+- Frontend proxies prompt-manager via `/api/prompt-manager/` → `http://prompt-manager:8083`.
 
 ## 3. Data flow
 
@@ -64,11 +71,59 @@ Container internal URLs:
 ### 3.3 Stream events (SSE)
 1. UI opens `GET /api/runs/{run_id}/events` with `EventSource`
 2. Next.js proxies to backend `GET /api/runs/{run_id}/events`
-3. Backend streams bytes from runner `GET /runs/{run_id}/events`
+3. Backend streams bytes from runner `GET /runs/{run_id}/events` via `httpx.AsyncClient.stream()`
 
 Notes:
 - The runner replays any buffered SSE lines to new subscribers before streaming live events.
 - If a run is already finished, the runner ends the SSE stream after sending a final `{ "type": "stream.closed", ... }` event.
+- Backend persists each SSE event to the `run_events` table as it passes through.
+
+### 3.4 Streaming event types by runner
+
+Both runners emit real-time SSE events through the same pipeline. The frontend handles both event schemas.
+
+**Codex runner** (`runner/`, `@openai/codex-sdk`):
+
+```
+thread.runStreamed(prompt) → AsyncGenerator<ThreadEvent>
+```
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `item.started` | `{ item: ThreadItem }` | Item begins (reasoning, command, file_change, mcp_tool_call, todo_list) |
+| `item.updated` | `{ item: ThreadItem }` | Item progress (live stdout, growing text) |
+| `item.completed` | `{ item: ThreadItem }` | Item finished (final text, exit code, status) |
+| `turn.started` | — | New model turn begins |
+| `turn.completed` | `{ usage }` | Turn finished with token usage |
+| `run.completed` | `{ runId, threadId }` | Wrapper event added by runner |
+
+ThreadItem types: `agent_message`, `reasoning`, `command_execution`, `file_change`, `mcp_tool_call`, `web_search`, `todo_list`, `error`
+
+**Claude runner** (`claude-runner/`, `anthropic` SDK):
+
+```
+client.messages.stream() → content_block_start/delta/stop events
+```
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `ui.message.assistant.delta` | `{ textDelta }` | Token-by-token text streaming |
+| `ui.message.assistant.final` | `{ text, format }` | Complete text block |
+| `ui.tool.call.start` | `{ toolId, toolName }` | Tool call begins |
+| `ui.tool.call` | `{ toolId, toolName, input }` | Tool call with full input |
+| `ui.tool.result` | `{ toolId, toolName, output }` | Tool execution result |
+| `ui.tool.blocked` | `{ toolId, reason }` | Tool blocked by hook |
+| `ui.iteration` | `{ current, max }` | Agent loop iteration |
+| `run.completed` | `{ threadId }` | Run finished |
+
+### 3.5 Session persistence and SSE reconnect
+
+The frontend maintains session state across navigation:
+
+1. **SPA navigation**: `AppContext` preserves `runId`, `sessionId`, `codexStatus`, and `codexEvents` in React state
+2. **Hard refresh**: Active `runId` persisted to `sessionStorage`; on mount, recovered and reconnected to live SSE stream
+3. **SSE reconnect**: Both runners buffer all events in memory; reconnecting replays the full buffer then streams live events
+4. **DB fallback**: If SSE reconnect fails (runner restarted), events are loaded from `run_events` table via `GET /api/runs/{id}/detail`
 
 ## 4. Key implementation details
 
@@ -134,9 +189,17 @@ Frontend API routes:
 - Add private repo access via GitHub App / deploy keys.
 - Add tenant context + auth. ✅ (v0.4.0)
 - Add diff visualization and patch apply workflow.
-- **Local folder upload from browser** 
-- **Workspace file browser & download** 
-- **Multi-tenant RBAC with groups** 
+- Local folder upload from browser. ✅ (v0.5.0)
+- Workspace file browser & download. ✅ (v0.5.0)
+- Multi-tenant RBAC with 5-role hierarchy. ✅ (v0.7.0)
+- E2E streaming with Codex SDK + Claude SDK. ✅ (v0.7.0)
+- Session persistence across navigation. ✅ (v0.7.0)
+- Prompt & Skills Manager microservice. ✅ (v0.6.9)
+- Workspace-level access grants via `workspace_access` table.
+- Group-based permissions via `user_groups` membership.
+- Audit logging for RBAC-sensitive operations.
+- Tenant management UI (create/edit/delete tenants).
+
 
 ## 8. v0.2.0 planned changes
 
