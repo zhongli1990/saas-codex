@@ -480,27 +480,95 @@ function CodexPageContent() {
     };
   }, []);
 
-  // Recover session: if we return to the page and status is running/stream-closed
-  // but there's no active EventSource, try to load the latest run from DB
+  // Persist runId to sessionStorage so it survives hard refresh
   useEffect(() => {
-    if ((status === "running" || status === "stream-closed") && !eventSourceRef.current && runId) {
-      (async () => {
+    if (runId) {
+      sessionStorage.setItem("codex-active-run", runId);
+    }
+  }, [runId]);
+
+  // On mount: recover active run from sessionStorage if context was lost
+  useEffect(() => {
+    if (!runId && status === "idle") {
+      const savedRunId = sessionStorage.getItem("codex-active-run");
+      if (savedRunId) {
+        setRunId(savedRunId);
+        setStatus("running");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Recover session: if status is running but no EventSource, reconnect to live stream
+  // The runner buffers all events, so reconnecting replays everything + gets live updates
+  useEffect(() => {
+    if (status === "running" && !eventSourceRef.current && runId) {
+      // Try to reconnect to the live SSE stream (runner replays buffered events)
+      const es = new EventSource(`/api/runs/${runId}/events`);
+      eventSourceRef.current = es;
+      let reconnectedText = "";
+
+      es.onmessage = (msg) => {
         try {
-          const r = await fetch(`/api/runs/${runId}/detail`);
-          if (r.ok) {
-            const data = await r.json();
-            if (data.events && data.events.length > 0) {
-              setEvents(data.events);
-              setStatus("completed");
-              setStreamingText("");
-              setActiveToolCall(null);
-            }
+          const parsed = JSON.parse(msg.data);
+          setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: parsed }]);
+
+          if (parsed.type === "ui.message.assistant.delta") {
+            reconnectedText += parsed.payload?.textDelta || "";
+            setStreamingText(reconnectedText);
+          } else if (parsed.type === "ui.message.assistant.final") {
+            setStreamingText("");
+            setActiveToolCall(null);
+            reconnectedText = "";
+          } else if (parsed.type === "ui.tool.call" || parsed.type === "ui.tool.call.start") {
+            setActiveToolCall({ name: parsed.payload?.toolName || "tool", input: parsed.payload?.input });
+            setStreamingText("");
+          } else if (parsed.type === "ui.tool.result") {
+            setActiveToolCall(null);
+          } else if (parsed.type === "run.completed" || parsed.type === "stream.closed") {
+            setStatus("completed");
+            setStreamingText("");
+            setActiveToolCall(null);
+            sessionStorage.removeItem("codex-active-run");
+            es.close();
+            eventSourceRef.current = null;
+          } else if (parsed.type === "error") {
+            setStatus(`error: ${parsed.payload?.message || parsed.message || "unknown"}`);
+            setStreamingText("");
+            setActiveToolCall(null);
+            sessionStorage.removeItem("codex-active-run");
+            es.close();
+            eventSourceRef.current = null;
           }
-        } catch {
-          // If we can't recover, just mark as completed so user isn't stuck
-          setStatus("stream-closed");
-        }
-      })();
+        } catch {}
+      };
+
+      es.onerror = () => {
+        es.close();
+        eventSourceRef.current = null;
+        // Fallback: try to load completed events from DB
+        (async () => {
+          try {
+            const r = await fetch(`/api/runs/${runId}/detail`);
+            if (r.ok) {
+              const data = await r.json();
+              if (data.events && data.events.length > 0) {
+                setEvents(data.events);
+                setStatus("completed");
+              } else {
+                setStatus("stream-closed");
+              }
+            } else {
+              setStatus("stream-closed");
+            }
+          } catch {
+            setStatus("stream-closed");
+          }
+          setStreamingText("");
+          setActiveToolCall(null);
+          sessionStorage.removeItem("codex-active-run");
+        })();
+      };
     }
   }, [status, runId, setEvents, setStatus]);
 
@@ -595,6 +663,7 @@ function CodexPageContent() {
           setStatus("completed");
           setStreamingText("");
           setActiveToolCall(null);
+          sessionStorage.removeItem("codex-active-run");
           es.close();
           eventSourceRef.current = null;
           
@@ -628,6 +697,7 @@ function CodexPageContent() {
           setStatus(`error: ${parsed.payload?.message || parsed.message || "unknown"}`);
           setStreamingText("");
           setActiveToolCall(null);
+          sessionStorage.removeItem("codex-active-run");
           es.close();
           eventSourceRef.current = null;
         }
