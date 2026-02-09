@@ -1,33 +1,47 @@
-# RBAC Design Document
+# RBAC Design — Enterprise SaaS Multi-Tenant Platform
 
-## Enterprise SaaS Multi-Tenant Platform
-
-**Version**: v0.6.4  
-**Last Updated**: Feb 8, 2026  
-**Status**: Implementation in Progress  
-**Branch**: `feature/skills-hooks-ui-rbac`
+**Version**: v0.7.0  
+**Last Updated**: Feb 9, 2026  
+**Status**: Implemented (Phase 1)  
+**Branch**: `feature/rbac-streaming-v07`
 
 ---
 
-## 1. Executive Summary
+## 1. Design Philosophy
 
-This document defines the Role-Based Access Control (RBAC) architecture for a mission-critical enterprise SaaS platform. The design implements a **3-tier user hierarchy** supporting multi-tenancy with granular permissions for Skills and Hooks management.
+**Simple but effective.** A **resource ownership model** where every data record belongs to a tenant, and access is determined by the user's role + tenant membership. No separate permissions table needed — the role IS the permission set.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     RESOURCE OWNERSHIP MODEL                      │
+│                                                                    │
+│   Every resource has:  tenant_id  +  owner_id                     │
+│   Every user has:      tenant_id  +  role                         │
+│                                                                    │
+│   Access = role_privileges ∩ tenant_scope                         │
+│                                                                    │
+│   tenant_id = NULL  →  Platform-level resource (Super Admin only) │
+│   tenant_id = X     →  Org-level resource (visible to tenant X)   │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 2. User Hierarchy (3 Tiers)
+## 2. User Hierarchy (3 Tiers, 5 Roles)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         TIER 1: SUPER ADMIN                                 │
 │  Platform Owner / System Administrator                                      │
+│  Role: super_admin  |  Scope: ALL tenants  |  Privilege: Manage (M)        │
 │  - Full platform access across all tenants                                  │
+│  - Manage all tenants, users, groups, and system configuration              │
 │  - Manage Platform Skills and Hooks                                         │
-│  - Manage all tenants, users, and system configuration                      │
 │  - View audit logs and system metrics                                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                         TIER 2: ORG ADMIN                                   │
 │  Customer Organization Administrator                                        │
+│  Role: org_admin  |  Scope: Own tenant  |  Privilege: Manage (M)           │
 │  - Full access within their tenant/organization                             │
 │  - Manage Tenant Skills and Hooks                                           │
 │  - Manage users and groups within their organization                        │
@@ -35,49 +49,69 @@ This document defines the Role-Based Access Control (RBAC) architecture for a mi
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                         TIER 3: END USERS                                   │
 │  Customer Organization Members                                              │
-│  - Access based on group membership and workspace grants                    │
-│  - Use available Skills (cannot manage)                                     │
-│  - Work within assigned workspaces/projects                                 │
-│  - Roles: Project Admin, Editor, Viewer                                     │
+│  Roles: project_admin, editor, viewer  |  Scope: Own tenant                │
+│  - project_admin: Create/edit resources, manage own workspaces (W+M own)   │
+│  - editor: Create prompts, run agents, use skills (W+R)                    │
+│  - viewer: Read-only access to dashboards, prompts, skills (R)             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### 2.1 Role Hierarchy
+
+```
+super_admin  ⊃  org_admin  ⊃  project_admin  ⊃  editor  ⊃  viewer
+  Level 5        Level 4        Level 3          Level 2     Level 1
+     M              M            W+M(own)          W+R          R
+  (all orgs)    (own org)      (own org)        (own org)   (own org)
+```
+
+### 2.2 Privilege Levels
+
+| Privilege | Symbol | Description |
+|-----------|--------|-------------|
+| **Read**  | `R`    | View/list the resource |
+| **Write** | `W`    | Create new, edit own resources |
+| **Manage**| `M`    | Edit/delete any resource in scope, assign access |
 
 ---
 
 ## 3. Database Schema
 
-### 3.1 Existing Tables (v0.5.0)
+### 3.1 Core Tables (All Implemented)
 
 ```sql
--- Users table
+-- Users table (Migration 005: expanded role constraint)
 CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    tenant_id UUID REFERENCES tenants(id),  -- NULL for Super Admin
-    email VARCHAR(255) UNIQUE NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID REFERENCES tenants(id),  -- NULL for Super Admin / unassigned
+    email VARCHAR(255) NOT NULL UNIQUE,
+    mobile VARCHAR(50),
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(255),
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending, active, inactive, rejected
-    role VARCHAR(20) NOT NULL DEFAULT 'user',  -- admin, user (platform-level)
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    role VARCHAR(20) NOT NULL DEFAULT 'editor',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     approved_at TIMESTAMP WITH TIME ZONE,
     approved_by UUID REFERENCES users(id),
-    last_login_at TIMESTAMP WITH TIME ZONE
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT chk_status CHECK (status IN ('pending', 'active', 'inactive', 'rejected')),
+    CONSTRAINT chk_role CHECK (role IN ('super_admin', 'org_admin', 'project_admin', 'editor', 'viewer'))
 );
 
 -- Tenants table (Customer Organizations)
 CREATE TABLE tenants (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'active',  -- active, inactive, suspended
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     metadata_json JSONB
 );
 
 -- Groups table (User Groups within Tenant)
 CREATE TABLE groups (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID REFERENCES tenants(id) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -89,451 +123,322 @@ CREATE TABLE groups (
 CREATE TABLE user_groups (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    role VARCHAR(20) NOT NULL DEFAULT 'member',  -- member, admin
+    role VARCHAR(20) NOT NULL DEFAULT 'member',
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     added_by UUID REFERENCES users(id),
     PRIMARY KEY (user_id, group_id)
 );
 
--- Workspace Access Grants
+-- Workspace Access Grants (for future fine-grained access)
 CREATE TABLE workspace_access (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
-    grantee_type VARCHAR(20) NOT NULL,  -- user, group
+    grantee_type VARCHAR(20) NOT NULL,  -- 'user' or 'group'
     grantee_id UUID NOT NULL,
-    access_level VARCHAR(20) NOT NULL,  -- owner, editor, viewer
+    access_level VARCHAR(20) NOT NULL,  -- 'owner', 'editor', 'viewer'
     granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     granted_by UUID REFERENCES users(id),
     UNIQUE(workspace_id, grantee_type, grantee_id)
 );
 ```
 
-### 3.2 Role Definitions
+### 3.2 Resource Tables (All Have tenant_id + owner_id)
 
-#### Platform-Level Roles (User.role)
+| Resource Table | tenant_id | owner_id | Description |
+|----------------|:---------:|:--------:|-------------|
+| `workspaces` | ✅ | ✅ | Code repositories / project folders |
+| `sessions` | ✅ | — | Agent sessions (inherits from workspace) |
+| `runs` | — | — | Individual agent runs (inherits from session) |
+| `prompt_templates` | ✅ | ✅ | Prompt templates |
+| `skills` | ✅ | ✅ | Agent skills |
+| `users` | ✅ | — | User accounts |
+| `groups` | ✅ | — | User groups within a tenant |
+| `workspace_access` | — | — | Fine-grained workspace grants |
 
-| Role | Description | Criteria |
-|------|-------------|----------|
-| `admin` | Super Admin | `User.role = 'admin' AND User.tenant_id IS NULL` |
-| `user` | Regular user | `User.role = 'user'` |
+### 3.3 Seeded Sample Data
 
-#### Tenant-Level Roles (Derived)
-
-| Role | Description | Criteria |
-|------|-------------|----------|
-| Org Admin | Tenant administrator | `UserGroup.role = 'admin'` for tenant's admin group |
-| Member | Regular tenant member | `UserGroup.role = 'member'` |
-
-#### Workspace-Level Roles (WorkspaceAccess.access_level)
-
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `owner` | Workspace owner | Full control, can delete |
-| `editor` | Can edit | Read/write, cannot delete |
-| `viewer` | Read-only | View only |
+| Tenant | Groups |
+|--------|--------|
+| NHS Birmingham Trust (`nhs-birmingham`) | Administrators, Clinical Leads, Developers, Sales |
+| Enterprise Corp (`enterprise-corp`) | Administrators, Architecture, Developers, Stakeholders |
 
 ---
 
 ## 4. Permission Matrix
 
-### 4.1 Platform Features
+### 4.1 User & Tenant Management
 
-| Feature | Super Admin | Org Admin | Project Admin | Editor | Viewer |
-|---------|-------------|-----------|---------------|--------|--------|
-| **Tenant Management** |
-| Create tenant | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Edit tenant | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Delete tenant | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Action | super_admin | org_admin | project_admin | editor | viewer |
+|--------|:-----------:|:---------:|:-------------:|:------:|:------:|
 | View all tenants | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **User Management** |
-| Create user (any tenant) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Create user (own tenant) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Approve users | ✅ | ✅ (own) | ❌ | ❌ | ❌ |
-| Assign roles | ✅ | ✅ (own) | ❌ | ❌ | ❌ |
-| **Group Management** |
-| Create group | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Manage group members | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Create/edit tenant | ✅ | ❌ | ❌ | ❌ | ❌ |
+| View users (all orgs) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| View users (own org) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Approve/reject users | ✅ | ✅¹ | ❌ | ❌ | ❌ |
+| Change user roles | ✅ | ✅² | ❌ | ❌ | ❌ |
+| Assign user to tenant | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Manage groups | ✅ | ✅¹ | ❌ | ❌ | ❌ |
 
-### 4.2 Skills Management
+¹ Own tenant only  ² Cannot promote above own role
 
-| Action | Super Admin | Org Admin | Project Admin | Editor | Viewer |
-|--------|-------------|-----------|---------------|--------|--------|
-| **Platform Skills** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Create | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Edit | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Delete | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Tenant Skills** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Create | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Edit | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Delete | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Project Skills** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
+### 4.2 Prompts & Templates
+
+| Action | super_admin | org_admin | project_admin | editor | viewer |
+|--------|:-----------:|:---------:|:-------------:|:------:|:------:|
+| View (own org + platform) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View (all orgs) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Create | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Edit own | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Edit any (own org) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Delete own | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Delete any (own org) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Publish | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Use/render | ✅ | ✅ | ✅ | ✅ | ❌ |
+
+### 4.3 Skills
+
+| Action | super_admin | org_admin | project_admin | editor | viewer |
+|--------|:-----------:|:---------:|:-------------:|:------:|:------:|
+| View (own org + platform) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View (all orgs) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Create | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Edit | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Delete | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Use Skills** | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Edit own | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Edit any (own org) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Enable/disable | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Delete | ✅ | ✅ | ❌ | ❌ | ❌ |
 
-### 4.3 Hooks Management
+### 4.4 Hooks
 
-| Action | Super Admin | Org Admin | Project Admin | Editor | Viewer |
-|--------|-------------|-----------|---------------|--------|--------|
-| **Platform Hooks** |
-| View | ✅ | ✅ (read-only) | ❌ | ❌ | ❌ |
-| Configure | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Tenant Hooks** |
-| View | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Configure | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Action | super_admin | org_admin | project_admin | editor | viewer |
+|--------|:-----------:|:---------:|:-------------:|:------:|:------:|
+| View (own org + platform) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Configure (own org) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Configure (platform) | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-### 4.4 Workspace Management
+### 4.5 Workspaces & Agent Console
 
-| Action | Super Admin | Org Admin | Project Admin | Editor | Viewer |
-|--------|-------------|-----------|---------------|--------|--------|
-| Create workspace | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Delete workspace | ✅ | ✅ | ✅ (own) | ❌ | ❌ |
-| Grant access | ✅ | ✅ | ✅ (own) | ❌ | ❌ |
-| View files | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Edit files | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Action | super_admin | org_admin | project_admin | editor | viewer |
+|--------|:-----------:|:---------:|:-------------:|:------:|:------:|
+| View (own org + platform) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View (all orgs) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Create workspace | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Delete own workspace | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Delete any (own org) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Run prompts | ✅ | ✅ | ✅ | ✅ | ❌ |
+| View sessions/history | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+### 4.6 UI Navigation (Sidebar)
+
+| Page/Tab | super_admin | org_admin | project_admin | editor | viewer |
+|----------|:-----------:|:---------:|:-------------:|:------:|:------:|
+| Dashboard | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Projects | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Agent Console | ✅ | ✅ | ✅ | ✅ | 👁️ |
+| Chat | ✅ | ✅ | ✅ | ✅ | 👁️ |
+| Prompts | ✅ | ✅ | ✅ | ✅ | 👁️ |
+| Settings | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Admin → Users | ✅ | ✅¹ | ❌ | ❌ | ❌ |
+| Admin → Skills | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Admin → Hooks | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Settings & RBAC modal | ✅ | ✅ | ❌ | ❌ | ❌ |
+
+👁️ = Read-only view  ¹ = Filtered to own tenant
 
 ---
 
-## 5. API Authorization
+## 5. Backend Implementation
 
-### 5.1 Authorization Middleware
-
-```python
-# backend/app/auth/rbac.py
-
-from enum import Enum
-from typing import Optional
-from fastapi import Depends, HTTPException, status
-from .dependencies import get_current_user
-from ..models import User, UserGroup, WorkspaceAccess
-
-class Permission(Enum):
-    # Platform
-    MANAGE_TENANTS = "manage_tenants"
-    MANAGE_ALL_USERS = "manage_all_users"
-    MANAGE_PLATFORM_SKILLS = "manage_platform_skills"
-    MANAGE_PLATFORM_HOOKS = "manage_platform_hooks"
-    
-    # Tenant
-    MANAGE_TENANT_USERS = "manage_tenant_users"
-    MANAGE_TENANT_SKILLS = "manage_tenant_skills"
-    MANAGE_TENANT_HOOKS = "manage_tenant_hooks"
-    MANAGE_TENANT_GROUPS = "manage_tenant_groups"
-    
-    # Workspace
-    MANAGE_PROJECT_SKILLS = "manage_project_skills"
-    EDIT_WORKSPACE = "edit_workspace"
-    VIEW_WORKSPACE = "view_workspace"
-    RUN_PROMPTS = "run_prompts"
-
-
-def is_super_admin(user: User) -> bool:
-    """Check if user is a Super Admin."""
-    return user.role == "admin" and user.tenant_id is None
-
-
-def is_org_admin(user: User, tenant_id: str, db) -> bool:
-    """Check if user is an Org Admin for the specified tenant."""
-    if user.tenant_id != tenant_id:
-        return False
-    # Check if user is admin of any group in the tenant
-    # (In practice, check for membership in "Administrators" group with admin role)
-    return db.query(UserGroup).filter(
-        UserGroup.user_id == user.id,
-        UserGroup.role == "admin"
-    ).first() is not None
-
-
-def get_workspace_access_level(user: User, workspace_id: str, db) -> Optional[str]:
-    """Get user's access level for a workspace."""
-    # Direct user grant
-    access = db.query(WorkspaceAccess).filter(
-        WorkspaceAccess.workspace_id == workspace_id,
-        WorkspaceAccess.grantee_type == "user",
-        WorkspaceAccess.grantee_id == user.id
-    ).first()
-    if access:
-        return access.access_level
-    
-    # Group-based grant
-    user_groups = db.query(UserGroup).filter(UserGroup.user_id == user.id).all()
-    for ug in user_groups:
-        access = db.query(WorkspaceAccess).filter(
-            WorkspaceAccess.workspace_id == workspace_id,
-            WorkspaceAccess.grantee_type == "group",
-            WorkspaceAccess.grantee_id == ug.group_id
-        ).first()
-        if access:
-            return access.access_level
-    
-    return None
-
-
-def require_permission(permission: Permission):
-    """Dependency to require a specific permission."""
-    async def check_permission(
-        user: User = Depends(get_current_user),
-        # Additional context passed via request state
-    ):
-        # Super Admin has all permissions
-        if is_super_admin(user):
-            return user
-        
-        # Check specific permissions based on context
-        # (Implementation depends on the specific endpoint)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Permission denied: {permission.value}"
-        )
-    
-    return check_permission
-```
-
-### 5.2 Endpoint Authorization Examples
+### 5.1 Core RBAC Module (`backend/app/auth/rbac.py`)
 
 ```python
-# Skills endpoints with RBAC
-
-@router.get("/api/skills")
-async def list_skills(
-    user: User = Depends(get_current_user),
-    scope: str = Query("platform"),
-    tenant_id: Optional[str] = Query(None),
-):
-    """List skills - filtered by user's access."""
-    skills = []
-    
-    # Platform skills - visible to all authenticated users
-    if scope in [None, "platform"]:
-        skills.extend(get_platform_skills())
-    
-    # Tenant skills - only visible to tenant members
-    if scope in [None, "tenant"] and tenant_id:
-        if is_super_admin(user) or user.tenant_id == tenant_id:
-            skills.extend(get_tenant_skills(tenant_id))
-    
-    return skills
-
-
-@router.post("/api/skills")
-async def create_skill(
-    request: CreateSkillRequest,
-    user: User = Depends(get_current_user),
-):
-    """Create skill - requires appropriate permissions."""
-    if request.scope == "platform":
-        if not is_super_admin(user):
-            raise HTTPException(403, "Only Super Admin can create platform skills")
-    
-    elif request.scope == "tenant":
-        if not (is_super_admin(user) or is_org_admin(user, request.tenant_id)):
-            raise HTTPException(403, "Only Org Admin can create tenant skills")
-    
-    elif request.scope == "project":
-        access = get_workspace_access_level(user, request.project_id)
-        if access != "owner" and not is_super_admin(user) and not is_org_admin(user, request.tenant_id):
-            raise HTTPException(403, "Only Project Admin can create project skills")
-    
-    return create_skill_impl(request, user)
-```
-
----
-
-## 6. Frontend Authorization
-
-### 6.1 User Context
-
-```typescript
-// contexts/AuthContext.tsx
-
-interface User {
-  id: string;
-  email: string;
-  displayName: string;
-  role: "admin" | "user";
-  tenantId: string | null;
-  status: string;
+ROLE_HIERARCHY = {
+    "super_admin": 5,
+    "admin": 5,        # legacy alias
+    "org_admin": 4,
+    "project_admin": 3,
+    "editor": 2,
+    "viewer": 1,
 }
 
+def is_super_admin(user) -> bool:
+    return user.role in ("admin", "super_admin")
+
+def has_min_role(user, min_role: str) -> bool:
+    return ROLE_HIERARCHY.get(user.role, 0) >= ROLE_HIERARCHY.get(min_role, 0)
+
+def tenant_filter(query, model, user):
+    """THE core RBAC pattern — apply tenant scoping to any SQLAlchemy query.
+    - super_admin: no filter (sees everything)
+    - others: resource.tenant_id = user.tenant_id OR resource.tenant_id IS NULL
+    """
+    if is_super_admin(user):
+        return query
+    return query.where(or_(
+        model.tenant_id == user.tenant_id,
+        model.tenant_id.is_(None),
+    ))
+
+def require_role(min_role: str):
+    """FastAPI dependency factory: require at least min_role level."""
+    async def _dep(user = Depends(get_current_user)):
+        if not has_min_role(user, min_role):
+            raise HTTPException(403, f"Requires {min_role} role or higher")
+        return user
+    return _dep
+```
+
+### 5.2 Resource Creation Auto-Tags Tenant
+
+```python
+# All workspace/session/template creation auto-inherits tenant_id:
+workspace = await repo.create(
+    ...,
+    tenant_id=user.tenant_id if user else None,
+)
+```
+
+### 5.3 Admin Users Scoping
+
+```python
+# Org admins only see users in their own tenant
+if not is_super_admin(admin) and admin.tenant_id:
+    query = query.where(User.tenant_id == admin.tenant_id)
+```
+
+### 5.4 API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/admin/users` | GET | org_admin+ | List users (scoped by tenant) |
+| `/api/admin/users/{id}/role` | POST | org_admin+ | Change user role |
+| `/api/admin/users/{id}/tenant` | POST | super_admin | Assign user to tenant |
+| `/api/admin/tenants` | GET | org_admin+ | List tenants |
+| `/api/admin/groups` | GET | org_admin+ | List groups |
+| `/api/admin/rbac/summary` | GET | org_admin+ | RBAC statistics |
+| `/api/workspaces` | GET | any | List workspaces (tenant-filtered) |
+
+### 5.5 JWT Claims
+
+```python
+# Login response includes tenant_id in JWT:
+payload = {
+    "sub": str(user.id),
+    "email": user.email,
+    "role": user.role,
+    "tenant_id": str(user.tenant_id) if user.tenant_id else None,
+}
+```
+
+---
+
+## 6. Frontend Implementation
+
+### 6.1 Role Helpers (`lib/auth.ts`)
+
+```typescript
+const ROLE_LEVELS = { super_admin: 5, admin: 5, org_admin: 4, project_admin: 3, editor: 2, viewer: 1 };
+
+export function hasMinRole(userRole: string | null, minRole: string): boolean {
+  if (!userRole) return false;
+  return (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS[minRole] || 0);
+}
+
+export function isSuperAdmin(role: string | null): boolean {
+  return role === "super_admin" || role === "admin";
+}
+
+export function isAdminRole(role: string | null): boolean {
+  return !!role && ["admin", "super_admin", "org_admin"].includes(role);
+}
+```
+
+### 6.2 AuthContext
+
+```typescript
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   isSuperAdmin: boolean;
-  isOrgAdmin: boolean;
-  tenantId: string | null;
-  permissions: Set<string>;
-  hasPermission: (permission: string) => boolean;
-}
-
-export function useAuth(): AuthContextType {
-  const { user } = useAppContext();
-  
-  const isSuperAdmin = user?.role === "admin" && user?.tenantId === null;
-  const isOrgAdmin = user?.role === "admin" || /* check group admin */;
-  
-  const permissions = useMemo(() => {
-    const perms = new Set<string>();
-    
-    if (isSuperAdmin) {
-      // Super Admin has all permissions
-      perms.add("manage_tenants");
-      perms.add("manage_all_users");
-      perms.add("manage_platform_skills");
-      perms.add("manage_platform_hooks");
-      perms.add("manage_tenant_skills");
-      perms.add("manage_tenant_hooks");
-      perms.add("manage_project_skills");
-    } else if (isOrgAdmin) {
-      perms.add("manage_tenant_users");
-      perms.add("manage_tenant_skills");
-      perms.add("manage_tenant_hooks");
-      perms.add("manage_tenant_groups");
-      perms.add("manage_project_skills");
-    }
-    
-    return perms;
-  }, [user, isSuperAdmin, isOrgAdmin]);
-  
-  return {
-    user,
-    isSuperAdmin,
-    isOrgAdmin,
-    tenantId: user?.tenantId || null,
-    permissions,
-    hasPermission: (p) => permissions.has(p),
-  };
+  hasMinRole: (minRole: string) => boolean;
+  // ...
 }
 ```
 
-### 6.2 Protected Routes
+### 6.3 Sidebar Navigation (Role-Gated)
 
 ```typescript
-// components/ProtectedRoute.tsx
-
-interface ProtectedRouteProps {
-  permission?: string;
-  requireSuperAdmin?: boolean;
-  requireOrgAdmin?: boolean;
-  children: React.ReactNode;
-}
-
-export function ProtectedRoute({
-  permission,
-  requireSuperAdmin,
-  requireOrgAdmin,
-  children,
-}: ProtectedRouteProps) {
-  const { user, isSuperAdmin, isOrgAdmin, hasPermission } = useAuth();
-  
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-  
-  if (requireSuperAdmin && !isSuperAdmin) {
-    return <AccessDenied message="Super Admin access required" />;
-  }
-  
-  if (requireOrgAdmin && !isOrgAdmin && !isSuperAdmin) {
-    return <AccessDenied message="Organization Admin access required" />;
-  }
-  
-  if (permission && !hasPermission(permission)) {
-    return <AccessDenied message={`Permission required: ${permission}`} />;
-  }
-  
-  return <>{children}</>;
-}
-```
-
-### 6.3 Navigation Menu
-
-```typescript
-// components/Navigation.tsx
-
-const navItems = [
-  { path: "/codex", label: "Agent Console", permission: null },
-  { path: "/workspaces", label: "Workspaces", permission: null },
-  { path: "/admin/skills", label: "Skills", permission: "manage_platform_skills", orgAdminAlt: "manage_tenant_skills" },
-  { path: "/admin/hooks", label: "Hooks", permission: "manage_platform_hooks", orgAdminAlt: "manage_tenant_hooks" },
-  { path: "/admin/users", label: "Users", permission: "manage_all_users", orgAdminAlt: "manage_tenant_users" },
-  { path: "/admin/tenants", label: "Tenants", permission: "manage_tenants" },
+const adminItems = [
+  { href: "/admin/users", label: "User Management", minRole: "org_admin" },
+  { href: "/admin/skills", label: "Skills",          minRole: "project_admin" },
+  { href: "/admin/hooks", label: "Hooks",            minRole: "org_admin" },
 ];
 
-function Navigation() {
-  const { hasPermission, isOrgAdmin } = useAuth();
-  
-  return (
-    <nav>
-      {navItems.map((item) => {
-        // Check if user has permission
-        const hasAccess = 
-          item.permission === null ||
-          hasPermission(item.permission) ||
-          (item.orgAdminAlt && hasPermission(item.orgAdminAlt));
-        
-        if (!hasAccess) return null;
-        
-        return <NavLink key={item.path} to={item.path}>{item.label}</NavLink>;
-      })}
-    </nav>
-  );
+const visibleAdminItems = adminItems.filter(i => hasMinRole(user?.role, i.minRole));
+```
+
+### 6.4 AuthGuard (Route Protection)
+
+```typescript
+// /admin/* routes require isAdminRole (super_admin, org_admin)
+if (pathname.startsWith("/admin") && !isAdminRole(user.role)) {
+  router.replace("/dashboard");
 }
 ```
 
 ---
 
-## 7. UI Routes
+## 7. Resource Visibility Rules
 
-### 7.1 Route Structure
-
-| Route | Component | Access |
-|-------|-----------|--------|
-| `/login` | LoginPage | Public |
-| `/register` | RegisterPage | Public |
-| `/codex` | AgentConsole | Authenticated |
-| `/workspaces` | WorkspaceList | Authenticated |
-| `/admin/skills` | SkillsManagement | Super Admin / Org Admin |
-| `/admin/hooks` | HooksManagement | Super Admin / Org Admin |
-| `/admin/users` | UserManagement | Super Admin / Org Admin |
-| `/admin/tenants` | TenantManagement | Super Admin only |
-| `/settings` | UserSettings | Authenticated |
-
-### 7.2 Skills Management Routes
-
-| Route | Component | Access |
-|-------|-----------|--------|
-| `/admin/skills` | SkillsList | Super Admin / Org Admin |
-| `/admin/skills/new` | SkillEditor | Super Admin / Org Admin |
-| `/admin/skills/:name` | SkillEditor | Super Admin / Org Admin |
-| `/admin/skills/:name/files` | SkillFiles | Super Admin / Org Admin |
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RESOURCE VISIBILITY RULES                      │
+│                                                                    │
+│  Super Admin:                                                      │
+│    → Sees ALL resources across ALL tenants                        │
+│    → Can CRUD any resource                                        │
+│                                                                    │
+│  Org Admin / Project Admin / Editor / Viewer:                     │
+│    → Sees resources WHERE:                                        │
+│        resource.tenant_id = user.tenant_id   (own org)            │
+│        OR resource.tenant_id IS NULL         (platform/shared)    │
+│    → Write/Manage based on role level                             │
+│                                                                    │
+│  No tenant_id on user (unassigned):                               │
+│    → Can only see platform-level resources (tenant_id IS NULL)    │
+│    → Effectively read-only until assigned to a tenant             │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 8. Implementation Checklist
+## 8. Implementation Status
 
-### Phase 1: Backend RBAC (Current)
-- [x] User model with role and tenant_id
-- [x] Tenant, Group, UserGroup models
-- [x] WorkspaceAccess model
-- [ ] RBAC middleware for permission checking
-- [ ] Update Skills API with authorization
-- [ ] Update Hooks API with authorization
+### Phase 1: ✅ Implemented (v0.7.0)
 
-### Phase 2: Frontend RBAC
-- [ ] AuthContext with permission checking
-- [ ] ProtectedRoute component
-- [ ] Navigation with permission-based visibility
-- [ ] Skills Management UI with RBAC
-- [ ] Hooks Management UI with RBAC
+- [x] Migration 005: Expand User.role to 5 roles
+- [x] Auto-migrate legacy roles (admin→super_admin, user→editor)
+- [x] Seed sample tenants and groups on startup
+- [x] `rbac.py`: `tenant_filter()`, `has_min_role()`, `require_role()`
+- [x] `tenant_id` in JWT claims
+- [x] Workspace list: tenant-scoped filtering
+- [x] Workspace/session create: auto-tag `tenant_id`
+- [x] Admin users: org_admin sees own tenant only
+- [x] prompt-manager: `is_admin` updated for new roles
+- [x] Frontend: `hasMinRole()`, `isSuperAdmin()` helpers
+- [x] Frontend: AuthContext exposes role checks
+- [x] Frontend: Sidebar admin items filtered by role level
+- [x] Frontend: Admin Users page — role dropdown, tenant dropdown (super_admin only)
+- [x] Frontend: Settings & RBAC modal fetches live DB data
+- [x] Frontend: AuthGuard updated for new role hierarchy
 
-### Phase 3: Testing
-- [ ] Unit tests for RBAC middleware
-- [ ] E2E tests for permission enforcement
-- [ ] Manual testing with different user roles
+### Phase 2: Planned (Future)
+
+- [ ] Workspace-level access grants via `workspace_access` table
+- [ ] Group-based permissions via `user_groups` membership
+- [ ] Audit logging for RBAC-sensitive operations
+- [ ] Fine-grained permission overrides per resource
+- [ ] Tenant management UI (create/edit/delete tenants)
+- [ ] Group management UI (assign users to groups)
 
 ---
 
@@ -543,36 +448,35 @@ function Navigation() {
 
 | Test | Expected Result |
 |------|-----------------|
-| Login as Super Admin | Full navigation visible |
+| Login as Super Admin | Full navigation visible (all admin tabs) |
 | View all tenants | All tenants listed |
+| View all users | All users across all tenants |
+| Change any user's role | Success |
+| Assign user to tenant | Success |
+| View all workspaces | All workspaces across all tenants |
 | Create platform skill | Success |
-| Edit platform skill | Success |
-| Delete platform skill | Success |
-| View tenant skills | All tenant skills visible |
-| Configure platform hooks | Success |
 
 ### 9.2 Org Admin Tests
 
 | Test | Expected Result |
 |------|-----------------|
-| Login as Org Admin | Tenant-scoped navigation |
-| View tenants | Only own tenant visible |
-| Create platform skill | 403 Forbidden |
+| Login as Org Admin | Admin tabs: Users, Skills, Hooks visible |
+| View users | Only own tenant's users |
+| Change user role (within tenant) | Success (cannot promote above own role) |
+| Assign user to tenant | 403 Forbidden (super_admin only) |
+| View workspaces | Own tenant + platform workspaces |
 | Create tenant skill | Success |
-| Edit tenant skill | Success |
-| View other tenant skills | 403 Forbidden |
-| Configure tenant hooks | Success |
 | Configure platform hooks | 403 Forbidden |
 
-### 9.3 End User Tests
+### 9.3 Editor / Viewer Tests
 
 | Test | Expected Result |
 |------|-----------------|
-| Login as End User | Limited navigation |
-| View Skills admin | 403 / Not visible |
-| Use skills in Agent Console | Success |
-| Create any skill | 403 Forbidden |
-| View Hooks admin | 403 / Not visible |
+| Login as Editor | No admin tabs in sidebar |
+| Access /admin/users | Redirected to /dashboard |
+| View workspaces | Own tenant + platform workspaces |
+| Create workspace | Success (editor), Forbidden (viewer) |
+| Run prompts | Success (editor), Forbidden (viewer) |
 
 ---
 
@@ -580,44 +484,51 @@ function Navigation() {
 
 ### 10.1 Defense in Depth
 
-1. **Frontend**: Hide unauthorized UI elements
-2. **API**: Validate permissions on every request
-3. **Database**: Row-level security where applicable
+1. **Frontend**: Hide unauthorized UI elements via `hasMinRole()`
+2. **API**: Validate permissions on every request via `require_role()` / `tenant_filter()`
+3. **Database**: Row-level scoping via `tenant_id` on all resource tables
 
-### 10.2 Audit Logging
+### 10.2 Session Security
 
-All permission-sensitive actions should be logged:
-- User authentication events
-- Permission denials
-- Skill/Hook modifications
-- User role changes
+- JWT tokens include `role` and `tenant_id` claims
+- Role changes require logout/login to take effect (new JWT)
+- `require_admin` / `require_super_admin` dependencies on all admin endpoints
 
-### 10.3 Session Security
-
-- JWT tokens with short expiry (1 hour)
-- Refresh token rotation
-- Session invalidation on role change
-
----
-
-## Appendix A: Default Groups
-
-Each tenant should have these default groups:
-
-| Group | Description | Default Role |
-|-------|-------------|--------------|
-| Administrators | Org Admins | admin |
-| Developers | Development team | member |
-| QA | Quality Assurance | member |
-| Viewers | Read-only access | member |
-
----
-
-## Appendix B: Migration Path
+### 10.3 Migration Path
 
 For existing users without tenant assignment:
+1. Legacy `admin` role auto-migrated to `super_admin`
+2. Legacy `user` role auto-migrated to `editor`
+3. Users without `tenant_id` see only platform-level resources
+4. Super admin assigns users to tenants via Admin → Users page
 
-1. Create a "Default" tenant for legacy users
-2. Assign legacy users to Default tenant
-3. Create Administrators group in Default tenant
-4. Assign existing admins to Administrators group
+---
+
+## Appendix A: Default Groups per Tenant
+
+| Group | Description | Seeded For |
+|-------|-------------|------------|
+| Administrators | Org Admins | Both tenants |
+| Clinical Leads | Domain experts | NHS Birmingham Trust |
+| Developers | Development team | Both tenants |
+| Sales | Sales team | NHS Birmingham Trust |
+| Architecture | Solution architects | Enterprise Corp |
+| Stakeholders | Business stakeholders | Enterprise Corp |
+
+---
+
+## Appendix B: File Locations
+
+| Component | File |
+|-----------|------|
+| RBAC module | `backend/app/auth/rbac.py` |
+| Auth dependencies | `backend/app/auth/dependencies.py` |
+| Admin router | `backend/app/admin/router.py` |
+| Migration 005 | `backend/alembic/versions/005_expand_rbac_roles.py` |
+| Frontend role helpers | `frontend/src/lib/auth.ts` |
+| AuthContext | `frontend/src/contexts/AuthContext.tsx` |
+| AuthGuard | `frontend/src/components/AuthGuard.tsx` |
+| Sidebar | `frontend/src/components/Sidebar.tsx` |
+| Admin Users page | `frontend/src/app/(app)/admin/users/page.tsx` |
+| Settings & RBAC modal | `frontend/src/components/SettingsMenu.tsx` |
+| prompt-manager auth | `prompt-manager/app/auth.py` |
