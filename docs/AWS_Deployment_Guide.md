@@ -2,8 +2,8 @@
 
 ## OpenLI Codex - Ubuntu VM Deployment with Docker Compose
 
-**Version**: v0.6.7  
-**Last Updated**: Feb 8, 2026
+**Version**: v0.7.1  
+**Last Updated**: Feb 9, 2026
 
 ---
 
@@ -16,6 +16,7 @@
 5. [Post-Deployment Verification](#5-post-deployment-verification)
 6. [Rollback Procedure](#6-rollback-procedure)
 7. [Troubleshooting](#7-troubleshooting)
+8. [Upgrade from v0.6.x to v0.7.1](#8-upgrade-from-v06x-to-v071)
 
 ---
 
@@ -400,10 +401,13 @@ echo "=== Verification Complete ==="
 | Backend health | curl :9101/health | `{"status": "ok"}` |
 | Claude Runner health | curl :9104/health | `{"status": "ok"}` |
 | Skills API | curl :9100/api/claude/skills | 10 skills listed |
-| About modal | Click logo | Shows v0.6.5 |
-| Settings menu | Click ⚙️ | Shows 8 sample users |
+| About modal | Click logo | Shows v0.7.1 |
+| Settings menu | Click ⚙️ | Shows sample users with roles |
 | Skills UI | /admin/skills | Lists 10 platform skills |
 | Hooks UI | /admin/hooks | Shows security/audit hooks |
+| Prompts UI | /prompts | Lists seed prompt templates |
+| User Management | /admin/users | Role dropdown, tenant column |
+| Role change | Change role dropdown | No 422 error, role updates |
 
 ---
 
@@ -515,6 +519,137 @@ docker stats --no-stream
 # If low memory, restart with limits
 docker compose down
 docker system prune -f
+docker compose up -d
+```
+
+---
+
+## 8. Upgrade from v0.6.x to v0.7.1
+
+This section covers upgrading an AWS production server running any v0.6.x release to v0.7.1.
+
+### What Changed (v0.6.x → v0.7.1)
+
+| Area | Changes |
+|------|--------|
+| **Database** | New migration `005_expand_rbac_roles` — expands role constraint to 5 roles, migrates `admin`→`super_admin`, `user`→`editor` |
+| **Backend** | RBAC module rewritten (`rbac.py`), tenant-scoped filtering, new admin endpoints |
+| **Frontend** | `providers.tsx` (AuthProvider wrapper), streaming event handling, role-gated UI |
+| **Prompt Manager** | Auth updated for new RBAC roles |
+| **Runners** | No changes (Codex + Claude runners unchanged) |
+
+### Step 1: SSH and Backup
+
+```bash
+ssh -i your-key.pem ubuntu@your-ec2-ip
+cd /home/ubuntu/saas-codex
+
+# Backup database
+mkdir -p ~/backups/$(date +%Y%m%d)
+docker compose exec -T postgres pg_dump -U saas saas > ~/backups/$(date +%Y%m%d)/saas_pre_v071.sql
+
+# Backup .env
+cp .env ~/backups/$(date +%Y%m%d)/.env.backup
+
+# Note current version
+git describe --tags
+```
+
+### Step 2: Pull v0.7.1
+
+```bash
+git fetch --all --tags
+git stash          # stash any local changes
+git checkout v0.7.1
+git describe --tags  # confirm: v0.7.1
+```
+
+### Step 3: Rebuild Changed Services
+
+Only 3 services have code changes — no need to rebuild runners:
+
+```bash
+# Rebuild only what changed (saves time vs --no-cache on all)
+docker compose build backend frontend prompt-manager
+```
+
+### Step 4: Run Database Migration
+
+```bash
+# Stop backend first to avoid conflicts
+docker compose stop backend
+
+# Run migration 005 (expands role constraint, migrates existing roles)
+docker compose up -d postgres
+sleep 3
+docker compose run --rm backend alembic upgrade head
+
+# Verify migration applied
+docker compose exec postgres psql -U saas -d saas -c \
+  "SELECT version_num FROM alembic_version;"
+# Expected: includes 005_expand_rbac_roles
+```
+
+### Step 5: Restart Services
+
+```bash
+# Restart all services with new images
+docker compose up -d
+
+# Watch logs for errors (30 seconds)
+docker compose logs -f --tail=50 backend frontend prompt-manager
+# Press Ctrl+C when satisfied
+```
+
+### Step 6: Verify
+
+```bash
+# Health checks
+curl -s http://localhost:9101/health | jq .
+curl -s http://localhost:9105/health | jq .
+
+# Verify roles migrated correctly
+docker compose exec postgres psql -U saas -d saas -c \
+  "SELECT email, role, tenant_id FROM users ORDER BY role;"
+
+# Check all containers healthy
+docker compose ps
+```
+
+Then in browser:
+
+1. **Login** at `http://your-ip:9100/login`
+2. **About modal** (click logo) → should show **v0.7.1**
+3. **User Management** (`/admin/users`) → role dropdown works, no 422 error
+4. **Prompts** (`/prompts`) → seed templates visible
+5. **Agent Console** (`/codex`) → streaming shows thinking/tool calls in real-time
+
+### Step 7: Verify Role Migration
+
+The migration auto-converts old roles:
+
+| Old Role | New Role |
+|----------|----------|
+| `admin` | `super_admin` |
+| `user` | `editor` |
+
+If you need to manually assign roles:
+
+```bash
+# Promote a user to org_admin
+docker compose exec postgres psql -U saas -d saas -c \
+  "UPDATE users SET role = 'org_admin' WHERE email = 'someone@example.com';"
+```
+
+### Rollback (if needed)
+
+```bash
+docker compose down
+git checkout v0.6.9   # or your previous tag
+docker compose build backend frontend prompt-manager
+docker compose up -d postgres
+sleep 3
+docker compose exec -T postgres psql -U saas -d saas < ~/backups/YYYYMMDD/saas_pre_v071.sql
 docker compose up -d
 ```
 

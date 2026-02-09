@@ -19,14 +19,30 @@ interface VersionHistory {
   features: string[];
 }
 
-const VERSION = "0.7.0";
+const VERSION = "0.7.1";
 const BUILD_DATE = "Feb 9, 2026";
 const PLATFORM_NAME = "OpenLI";
 const PRODUCT_NAME = "OpenLI Codex";
 
 const versionHistory: VersionHistory[] = [
   {
-    version: "0.7.0",
+    version: "0.7.1",
+    date: "Feb 9, 2026",
+    features: [
+      "5-role RBAC: super_admin, org_admin, project_admin, editor, viewer",
+      "Tenant-scoped resource filtering on all API endpoints",
+      "Real-time SSE streaming — Codex SDK (reasoning, commands, file changes, todo lists)",
+      "Real-time SSE streaming — Claude SDK (token-by-token text, tool calls)",
+      "Session persistence across navigation via sessionStorage + SSE reconnect",
+      "Role-gated sidebar and admin UI with minRole filtering",
+      "User Management: role dropdown, tenant assignment (super_admin)",
+      "Fix: useAuth crash on User Management page (AuthProvider wrapper)",
+      "Fix: role change 422 error (query param forwarding in API proxy)",
+      "Consolidated RBAC design documentation",
+    ],
+  },
+  {
+    version: "0.6.9",
     date: "Feb 9, 2026",
     features: [
       "Prompt & Skills Manager microservice (PostgreSQL-backed)",
@@ -263,9 +279,11 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     "Prompt Templates",
                     "Skills Management",
                     "Security Hooks",
-                    "Multi-tenant RBAC",
+                    "5-Role RBAC",
+                    "Real-time Streaming",
+                    "Session Persistence",
                     "NHS/HIPAA Compliance",
-                    "SSE Streaming",
+                    "Tenant Isolation",
                   ].map((feature) => (
                     <div
                       key={feature}
@@ -290,6 +308,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     "FastAPI",
                     "PostgreSQL",
                     "Docker",
+                    "Codex SDK",
                     "Claude SDK",
                     "TailwindCSS",
                     "TypeScript",
