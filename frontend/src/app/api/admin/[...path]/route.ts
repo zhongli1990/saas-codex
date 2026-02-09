@@ -32,9 +32,11 @@ export async function POST(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join("/");
+  const searchParams = request.nextUrl.searchParams.toString();
+  const url = `${BACKEND_URL}/api/admin/${path}${searchParams ? `?${searchParams}` : ""}`;
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/${path}`, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
