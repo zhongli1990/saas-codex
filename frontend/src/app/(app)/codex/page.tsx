@@ -618,8 +618,43 @@ function CodexPageContent() {
         const parsed = JSON.parse(msg.data);
         setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: parsed }]);
 
-        // Capture assistant content and tool calls for persistence
-        if (parsed.type === "item.completed" && parsed.item) {
+        // === Codex SDK events: item.started / item.updated / item.completed ===
+        if (parsed.type === "item.started" && parsed.item) {
+          const item = parsed.item;
+          if (item.type === "reasoning") {
+            setStreamingText(item.text || "");
+          } else if (item.type === "command_execution") {
+            setActiveToolCall({ name: "shell", input: item.command });
+            setStreamingText("");
+          } else if (item.type === "file_change") {
+            const files = (item.changes || []).map((c: any) => `${c.kind}: ${c.path}`).join(", ");
+            setActiveToolCall({ name: "file_edit", input: files });
+            setStreamingText("");
+          } else if (item.type === "mcp_tool_call") {
+            setActiveToolCall({ name: `${item.server}/${item.tool}`, input: item.arguments });
+            setStreamingText("");
+          } else if (item.type === "todo_list") {
+            const plan = (item.items || []).map((t: any) => `${t.completed ? "✅" : "⬜"} ${t.text}`).join("\n");
+            setStreamingText(plan);
+          } else if (item.type === "agent_message") {
+            setStreamingText(item.text || "");
+          }
+        } else if (parsed.type === "item.updated" && parsed.item) {
+          const item = parsed.item;
+          if (item.type === "command_execution") {
+            setActiveToolCall({ name: "shell", input: item.command });
+            if (item.aggregated_output) {
+              setStreamingText(item.aggregated_output.slice(-2000));
+            }
+          } else if (item.type === "reasoning") {
+            setStreamingText(item.text || "");
+          } else if (item.type === "agent_message") {
+            setStreamingText(item.text || "");
+          } else if (item.type === "todo_list") {
+            const plan = (item.items || []).map((t: any) => `${t.completed ? "✅" : "⬜"} ${t.text}`).join("\n");
+            setStreamingText(plan);
+          }
+        } else if (parsed.type === "item.completed" && parsed.item) {
           const item = parsed.item;
           if (item.type === "agent_message" && item.text) {
             assistantContent = item.text;
@@ -627,6 +662,7 @@ function CodexPageContent() {
             setActiveToolCall(null);
           } else if (item.type === "command_execution") {
             setActiveToolCall(null);
+            setStreamingText("");
             toolMessages.push({
               role: "tool",
               content: "shell",
@@ -636,7 +672,34 @@ function CodexPageContent() {
                 tool_output: item.aggregated_output || `Exit code: ${item.exit_code}`
               }
             });
+          } else if (item.type === "file_change") {
+            setActiveToolCall(null);
+            setStreamingText("");
+            toolMessages.push({
+              role: "tool",
+              content: "file_edit",
+              metadata: {
+                tool_name: "file_edit",
+                tool_input: (item.changes || []).map((c: any) => `${c.kind}: ${c.path}`).join("\n"),
+                tool_output: `Status: ${item.status}`
+              }
+            });
+          } else if (item.type === "mcp_tool_call") {
+            setActiveToolCall(null);
+            setStreamingText("");
+            toolMessages.push({
+              role: "tool",
+              content: item.tool || "mcp_tool",
+              metadata: {
+                tool_name: `${item.server}/${item.tool}`,
+                tool_input: item.arguments,
+                tool_output: item.result || item.error?.message || "completed"
+              }
+            });
+          } else if (item.type === "reasoning" || item.type === "todo_list") {
+            setStreamingText("");
           }
+        // === Claude runner events: ui.message.* / ui.tool.* ===
         } else if (parsed.type === "ui.message.assistant.delta") {
           // Show streaming text in real-time
           setStreamingText(prev => prev + (parsed.payload?.textDelta || ""));
