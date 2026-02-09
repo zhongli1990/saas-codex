@@ -21,6 +21,7 @@ const items = [
   { href: "/projects", label: "Projects", icon: "📁" },
   { href: "/codex", label: "Agents", icon: "🤖" },
   { href: "/chat", label: "Chat", icon: "💬" },
+  { href: "/prompts", label: "Prompts", icon: "📝" },
   { href: "/settings", label: "Settings", icon: "⚙️" }
 ];
 

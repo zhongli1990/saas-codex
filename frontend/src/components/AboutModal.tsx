@@ -19,12 +19,28 @@ interface VersionHistory {
   features: string[];
 }
 
-const VERSION = "0.6.8";
-const BUILD_DATE = "Feb 8, 2026";
+const VERSION = "0.7.0";
+const BUILD_DATE = "Feb 9, 2026";
 const PLATFORM_NAME = "OpenLI";
 const PRODUCT_NAME = "OpenLI Codex";
 
 const versionHistory: VersionHistory[] = [
+  {
+    version: "0.7.0",
+    date: "Feb 9, 2026",
+    features: [
+      "Prompt & Skills Manager microservice (PostgreSQL-backed)",
+      "Prompts tab: browse, create, edit, publish prompt templates",
+      "Template variable system with typed inputs and live preview",
+      "Use Template modal with variable fill and Send to Agent",
+      "Template picker dropdown in Agent Console prompt area",
+      "10 seed platform templates (SoW, Charter, ADR, PRD, etc.)",
+      "Skills CRUD API with versioning and multi-tenant support",
+      "File-based skills sync to database",
+      "Template usage analytics logging",
+      "Categories API with template/skill counts",
+    ],
+  },
   {
     version: "0.6.8",
     date: "Feb 8, 2026",
@@ -244,12 +260,12 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                   {[
                     "Multi-Agent SDKs",
                     "Plug-and-Play Runners",
+                    "Prompt Templates",
                     "Skills Management",
                     "Security Hooks",
                     "Multi-tenant RBAC",
                     "NHS/HIPAA Compliance",
                     "SSE Streaming",
-                    "File Management",
                   ].map((feature) => (
                     <div
                       key={feature}

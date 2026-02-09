@@ -1,10 +1,21 @@
 # OpenLI Codex - Frontend Feature Revision History
 
-**Version**: v0.6.8+ | **Updated**: Feb 8, 2026
+**Version**: v0.7.0 | **Updated**: Feb 9, 2026
 
 ---
 
-## v0.6.8+ (Current)
+## v0.7.0 (Current)
+- **Prompts Tab** - `/prompts` - Browse, filter, search prompt templates
+- **New Template Modal** - Create templates with name, category, body, variables
+- **Use Template Modal** - Fill variables, live preview, Copy, Send to Agent
+- **Template Picker** - 📝 "Use Template" dropdown in Agent Console prompt area
+- **Variable Fill Modal** - Typed inputs (string, text, enum, date, number) in Agent Console
+- **sessionStorage Prefill** - Seamless prompt transfer from Prompts page → Agent Console
+- **Sidebar: Prompts** - 📝 Prompts navigation link added
+- **AboutModal v0.7.0** - Version history updated with Prompt & Skills Manager features
+- **Key Features Grid** - "Prompt Templates" added to About modal
+
+## v0.6.8
 - **Collapsible Sidebar** - Click LI logo to collapse/expand
 - **Mobile Hamburger Menu** - TopNav toggle for mobile
 - **Multi-Agent SDK Dropdown** - 7 runners (Claude ✓, Codex ✓, 5 coming soon)

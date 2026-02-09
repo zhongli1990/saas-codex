@@ -2,8 +2,8 @@
 
 ## OpenLI Codex - Manual End-to-End Testing
 
-**Version**: v0.6.7  
-**Last Updated**: Feb 8, 2026
+**Version**: v0.7.0  
+**Last Updated**: Feb 9, 2026
 
 ---
 
@@ -17,6 +17,7 @@
 6. [Agent Console Tests](#6-agent-console-tests)
 7. [Sales/Architect Scenario](#7-salesarchitect-scenario)
 8. [Automated Tests (Playwright)](#8-automated-tests-playwright)
+9. [Prompt & Skills Manager Tests (v0.7.0)](#9-prompt--skills-manager-tests-v070)
 
 ---
 
@@ -40,9 +41,11 @@ docker compose ps
 |---------|-----|
 | Frontend | http://localhost:9100 |
 | Agent Console | http://localhost:9100/codex |
+| Prompts Page | http://localhost:9100/prompts |
 | Skills Management | http://localhost:9100/admin/skills |
 | Hooks Configuration | http://localhost:9100/admin/hooks |
 | Backend API | http://localhost:9101 |
+| Prompt Manager API | http://localhost:9105 |
 | Claude Runner API | http://localhost:9104 |
 
 ---
@@ -657,24 +660,240 @@ npm run test:headed
 |------|-------|-------------|
 | skills.spec.ts | 12 | Skills Management UI + API |
 | hooks.spec.ts | 10 | Hooks Configuration UI |
+| prompts.spec.ts | 11 | Prompt Templates UI + API via proxy |
+
+### Run Prompt Manager API Tests (inside Docker)
+
+```bash
+# Run the Python API E2E tests inside the prompt-manager container
+docker compose exec prompt-manager python /app/tests/test_prompt_manager_api.py -v
+```
+
+**Expected**: 21/21 tests pass.
 
 ### Expected Results
 
 ```
-Running 22 tests using 1 worker
+Running 33+ tests using 1 worker
 
   ✓ Skills Management > should navigate to skills page
   ✓ Skills Management > should list platform skills
-  ✓ Skills Management > should filter skills by scope
-  ✓ Skills Management > should search skills
-  ✓ Skills Management > should view skill details
   ...
   ✓ Hooks Configuration > should navigate to hooks page
   ✓ Hooks Configuration > should display security hooks
   ...
+  ✓ Prompts Page > should display seeded prompt templates
+  ✓ Prompts Page > should open Use Template modal
+  ✓ Agent Console Template Picker > should show template picker
+  ✓ Prompt Manager API via Frontend Proxy > should list templates
+  ✓ Prompt Manager API via Frontend Proxy > should create and render template
+  ...
 
-  22 passed (45s)
+  33+ passed
 ```
+
+---
+
+## 9. Prompt & Skills Manager Tests (v0.7.0)
+
+**Login**: `admin@saas-codex.com` / `Admin123!`
+
+---
+
+### Test 9.1: Sidebar Navigation — Prompts Link
+
+**Steps**:
+1. Login at http://localhost:9100/login
+2. Look at the left sidebar
+
+**Expected**:
+- ✅ A "📝 Prompts" link is visible in the navigation
+- ✅ Clicking it navigates to `/prompts`
+
+---
+
+### Test 9.2: Prompts List Page — Seed Templates
+
+**Steps**:
+1. Navigate to http://localhost:9100/prompts
+
+**Expected**:
+- ✅ Page title shows "Prompt Templates"
+- ✅ 10 seed templates are displayed:
+
+| Template | Category |
+|----------|----------|
+| NHS SoW Generator | sales |
+| Project Charter | project-management |
+| Architecture Decision Record | architecture |
+| Code Review Checklist | development |
+| Test Strategy Document | qa |
+| PRD Writer | product |
+| User Guide Generator | support |
+| NHS Compliance Audit | compliance |
+| Weekly Status Report | project-management |
+| API Design Specification | architecture |
+
+- ✅ Each card shows name, category badge, status badge, and variable count
+
+---
+
+### Test 9.3: Filter & Search
+
+**Steps**:
+1. On the Prompts page, use the **Category** dropdown
+2. Select "sales"
+
+**Expected**:
+- ✅ Only "NHS SoW Generator" is shown
+
+**Steps (continued)**:
+3. Clear the filter (select "All")
+4. Type "NHS" in the **Search** box
+
+**Expected**:
+- ✅ Only NHS-related templates appear (NHS SoW Generator, NHS Compliance Audit)
+
+**Steps (continued)**:
+5. Clear search
+
+---
+
+### Test 9.4: Create New Template
+
+**Steps**:
+1. Click **"+ New Template"** button
+
+**Expected**:
+- ✅ Modal appears with fields: Name, Category, Template Body
+
+**Steps (continued)**:
+2. Fill in:
+   - Name: `My Test Template`
+   - Category: `testing`
+   - Body: `Hello {{name}}, welcome to {{project}}.`
+3. Click **Create**
+
+**Expected**:
+- ✅ New template appears in the list with status "draft"
+
+---
+
+### Test 9.5: Use Template Modal (Variable Fill)
+
+**Steps**:
+1. Find "NHS SoW Generator" in the list
+2. Click the **"Use"** button on that card
+
+**Expected**:
+- ✅ A modal opens showing variable input fields:
+  - `customer_name`, `customer_type` (dropdown), `project_name`, `scope_description`, `start_date`, `end_date`, `budget`, `requirements`
+- ✅ Sample values are pre-filled
+
+**Steps (continued)**:
+3. Modify `customer_name` to "NHS Manchester Trust"
+
+**Expected**:
+- ✅ The live preview panel updates in real-time
+
+**Steps (continued)**:
+4. Click **"Copy"**
+
+**Expected**:
+- ✅ Rendered text is copied to clipboard
+
+**Steps (continued)**:
+5. Click **"Send to Agent"**
+
+**Expected**:
+- ✅ Redirected to `/codex`
+- ✅ Prompt textarea is pre-filled with the rendered template text
+
+---
+
+### Test 9.6: Agent Console — Template Picker Dropdown
+
+**Steps**:
+1. Navigate to http://localhost:9100/codex
+2. Look at the prompt area — next to "Instruction" label
+
+**Expected**:
+- ✅ A **"📝 Use Template"** link/button is visible
+
+**Steps (continued)**:
+3. Click it
+
+**Expected**:
+- ✅ A dropdown appears listing available published templates with category badges
+
+**Steps (continued)**:
+4. Click on "Code Review Checklist"
+
+**Expected**:
+- ✅ A variable fill modal appears with fields: `language` (dropdown), `framework`, `focus_area` (dropdown), `pr_description`
+
+**Steps (continued)**:
+5. Fill in values and click **"Apply to Prompt"**
+
+**Expected**:
+- ✅ The prompt textarea is populated with the rendered template
+- ✅ No `{{` variables remaining in the text
+
+---
+
+### Test 9.7: Agent Console — sessionStorage Prefill
+
+**Steps**:
+1. Navigate to http://localhost:9100/prompts
+2. Pick any template, click **"Use"**, fill variables, click **"Send to Agent"**
+
+**Expected**:
+- ✅ Redirected to `/codex` with prompt textarea pre-filled
+- ✅ The prefilled text matches the rendered template
+
+---
+
+### Test 9.8: About Modal — Version 0.7.0
+
+**Steps**:
+1. Click the **LI logo** in the sidebar to open the About modal
+
+**Expected**:
+- ✅ Version shows **v0.7.0**
+- ✅ Build Date shows **Feb 9, 2026**
+
+**Steps (continued)**:
+2. Click **"Version History"** tab
+
+**Expected**:
+- ✅ v0.7.0 entry is at the top with features including "Prompt & Skills Manager microservice"
+
+**Steps (continued)**:
+3. Click **"About"** tab
+
+**Expected**:
+- ✅ "Prompt Templates" appears in the Key Features grid
+
+---
+
+### Test 9.9: Automated API Tests (inside Docker)
+
+**Steps**:
+```bash
+docker compose exec prompt-manager python /app/tests/test_prompt_manager_api.py -v
+```
+
+**Expected**:
+- ✅ 21/21 tests pass
+- ✅ Output includes:
+  - Health checks (direct + frontend proxy)
+  - Authentication (unauthenticated rejected, invalid token rejected)
+  - Login
+  - Seed templates loaded (10 published)
+  - Template CRUD lifecycle (create, get, update, version history, publish, render, clone, delete)
+  - Skills CRUD (list, create, toggle)
+  - Categories (10 categories)
+  - Usage stats
 
 ---
 
@@ -705,5 +924,15 @@ Running 22 tests using 1 worker
 | 6.3 | Security Blocking | ⬜ | |
 | 6.4 | Raw Events | ⬜ | |
 | 7.1-5 | Sales/Architect Scenario | ⬜ | |
+
+| 9.1 | Sidebar Prompts Link | ⬜ | |
+| 9.2 | Seed Templates Display | ⬜ | |
+| 9.3 | Filter & Search | ⬜ | |
+| 9.4 | Create New Template | ⬜ | |
+| 9.5 | Use Template Modal | ⬜ | |
+| 9.6 | Template Picker (Agent) | ⬜ | |
+| 9.7 | sessionStorage Prefill | ⬜ | |
+| 9.8 | About Modal v0.7.0 | ⬜ | |
+| 9.9 | API Tests (Docker) | ⬜ | |
 
 **Legend**: ✅ Pass | ❌ Fail | ⬜ Not Tested

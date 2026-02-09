@@ -79,6 +79,7 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://saas:saas@postgres:5432/saas
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       RUNNER_URL: http://runner:8081
       RUNNER_CODEX_URL: http://runner:8081
       RUNNER_CLAUDE_URL: http://claude-runner:8082
@@ -105,18 +106,30 @@ services:
       context: ./frontend
     environment:
       BACKEND_URL: http://backend:8080
+      PROMPT_MANAGER_URL: http://prompt-manager:8083
       PORT: 3000
     ports:
       - "9100:3000"
     depends_on:
       - backend
+      - prompt-manager
     restart: unless-stopped
 
   prompt-manager:
     build:
       context: ./prompt-manager
+    environment:
+      DATABASE_URL: postgresql+psycopg://saas:saas@postgres:5432/saas
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      GLOBAL_SKILLS_PATH: /app/skills
+      PORT: 8083
+    volumes:
+      - ./claude-runner/skills:/app/skills:ro
+      - ./tests:/app/tests:ro
     ports:
       - "9105:8083"
+    depends_on:
+      - postgres
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8083/health');\""]
       interval: 10m
