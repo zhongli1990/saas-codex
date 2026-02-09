@@ -105,11 +105,13 @@ services:
       context: ./frontend
     environment:
       BACKEND_URL: http://backend:8080
+      PROMPT_MANAGER_URL: http://prompt-manager:8083
       PORT: 3000
     ports:
       - "9100:3000"
     depends_on:
       - backend
+      - prompt-manager
     restart: unless-stopped
 
   prompt-manager:

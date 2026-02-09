@@ -108,6 +108,12 @@ function CodexPageContent() {
     const sessParam = searchParams.get("session");
     if (wsParam && !selectedWorkspaceId) setSelectedWorkspaceId(wsParam);
     if (sessParam && !sessionId) setSessionId(sessParam);
+    // Pick up prefilled prompt from Prompts page
+    const prefill = sessionStorage.getItem("prefill-prompt");
+    if (prefill) {
+      setPrompt(prefill);
+      sessionStorage.removeItem("prefill-prompt");
+    }
     setInitialized(true);
   }, [searchParams, selectedWorkspaceId, sessionId, setSelectedWorkspaceId, setSessionId]);
 
