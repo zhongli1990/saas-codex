@@ -180,6 +180,7 @@ function CodexPageContent() {
     }
     setPrompt(rendered);
     setShowTemplateVarModal(null);
+    setTemplatePickerOpen(false);
   };
 
   const fetchRuns = useCallback(async (sessionId: string) => {

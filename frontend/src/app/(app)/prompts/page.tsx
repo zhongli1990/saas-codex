@@ -87,6 +87,16 @@ export default function PromptsPage() {
   });
   const [creating, setCreating] = useState(false);
 
+  // Edit Template Modal
+  const [editModal, setEditModal] = useState<PromptTemplate | null>(null);
+  const [editFields, setEditFields] = useState({ template_body: "", description: "", change_summary: "" });
+  const [saving, setSaving] = useState(false);
+
+  // Version History Modal
+  const [versionsModal, setVersionsModal] = useState<PromptTemplate | null>(null);
+  const [versions, setVersions] = useState<PromptTemplate[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -172,6 +182,67 @@ export default function PromptsPage() {
       alert(err instanceof Error ? err.message : "Failed to create template");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEditTemplate = (t: PromptTemplate) => {
+    setEditFields({ template_body: t.template_body, description: t.description || "", change_summary: "" });
+    setEditModal(t);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editModal) return;
+    setSaving(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/prompt-manager/templates/${editModal.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(editFields),
+      });
+      if (!res.ok) throw new Error("Failed to update template");
+      setEditModal(null);
+      fetchTemplates();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update template");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleViewVersions = async (t: PromptTemplate) => {
+    setVersionsModal(t);
+    setLoadingVersions(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/prompt-manager/templates/${t.id}/versions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVersions(data.items || []);
+      }
+    } catch {
+      setVersions([]);
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const handleCloneTemplate = async (id: string) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/prompt-manager/templates/${id}/clone`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Failed to clone template");
+      fetchTemplates();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to clone template");
     }
   };
 
@@ -332,6 +403,25 @@ export default function PromptsPage() {
                     className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                   >
                     Use
+                  </button>
+                  <button
+                    onClick={() => handleEditTemplate(t)}
+                    className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleViewVersions(t)}
+                    className="rounded-md border border-indigo-300 dark:border-indigo-600 px-3 py-1.5 text-xs text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                  >
+                    v{t.version}
+                  </button>
+                  <button
+                    onClick={() => handleCloneTemplate(t.id)}
+                    className="rounded-md border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    title="Clone template"
+                  >
+                    📋
                   </button>
                   {t.status === "draft" && (
                     <button
@@ -522,6 +612,141 @@ export default function PromptsPage() {
                 className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 {creating ? "Creating..." : "Create Template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ─── Edit Template Modal ─── */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white dark:bg-zinc-800 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Edit: {editModal.name}</h2>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">Current version: v{editModal.version} — Saving creates a new version</p>
+              </div>
+              <button onClick={() => setEditModal(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-xl">×</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={editFields.description}
+                  onChange={(e) => setEditFields({ ...editFields, description: e.target.value })}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                  Template Body <span className="font-normal text-zinc-400">— Use {"{{variable_name}}"} for parameters</span>
+                </label>
+                <textarea
+                  value={editFields.template_body}
+                  onChange={(e) => setEditFields({ ...editFields, template_body: e.target.value })}
+                  rows={12}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                  Change Summary * <span className="font-normal text-zinc-400">— Describe what changed in this version</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFields.change_summary}
+                  onChange={(e) => setEditFields({ ...editFields, change_summary: e.target.value })}
+                  placeholder="e.g. Updated compliance section, added new variable"
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-700 px-6 py-4">
+              <p className="text-xs text-zinc-400">This will create version v{editModal.version + 1}</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="rounded-md border border-zinc-300 dark:border-zinc-600 px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={saving || !editFields.change_summary}
+                  className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : `Save as v${editModal.version + 1}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Version History Modal ─── */}
+      {versionsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white dark:bg-zinc-800 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Version History: {versionsModal.name}</h2>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">All versions of this template</p>
+              </div>
+              <button onClick={() => setVersionsModal(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-xl">×</button>
+            </div>
+            <div className="p-6">
+              {loadingVersions ? (
+                <div className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-8">Loading versions...</div>
+              ) : versions.length === 0 ? (
+                <div className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-8">No version history available</div>
+              ) : (
+                <div className="space-y-3">
+                  {versions.map((v) => (
+                    <div
+                      key={v.id}
+                      className={`rounded-lg border p-4 ${
+                        v.is_latest
+                          ? "border-indigo-300 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-zinc-900 dark:text-white">v{v.version}</span>
+                          {v.is_latest && (
+                            <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                              Latest
+                            </span>
+                          )}
+                          {statusBadge(v.status)}
+                        </div>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                          {new Date(v.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {v.description && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">{v.description}</p>
+                      )}
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">
+                          View template body
+                        </summary>
+                        <pre className="mt-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 text-xs text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap overflow-x-auto max-h-40">
+                          {v.template_body}
+                        </pre>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end border-t border-zinc-200 dark:border-zinc-700 px-6 py-4">
+              <button
+                onClick={() => setVersionsModal(null)}
+                className="rounded-md border border-zinc-300 dark:border-zinc-600 px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              >
+                Close
               </button>
             </div>
           </div>
