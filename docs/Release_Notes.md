@@ -1,10 +1,43 @@
 # Release Notes
 
+## v0.7.1 — RBAC + E2E Streaming + Bug Fixes (Feb 9, 2026)
+
+Release name: **rbac-streaming-v07**
+
+**Status**: ✅ Released  
+**Tag**: `v0.7.1`  
+**Branch**: `main` (merged from `feature/rbac-streaming-v07`)  
+**Commits**: 23 files changed, +1,601 / −662 lines
+
+### Summary
+
+This release consolidates all v0.7.x work into a single stable release on `main`:
+
+- **5-role RBAC system** — `super_admin → org_admin → project_admin → editor → viewer` with tenant-scoped resource filtering
+- **Real-time SSE streaming** — full Codex SDK (`item.started/updated/completed`) and Claude SDK (`ui.message.assistant.delta`) event rendering
+- **Session persistence** — active runs survive page navigation and hard refresh via `sessionStorage` + SSE reconnect
+- **Role-gated UI** — sidebar admin tabs, user management columns, and action buttons filtered by role level
+- **Critical bug fixes** — `useAuth` crash on User Management page, role change 422 error, admin tabs not showing
+
+### Bug Fixes (since v0.7.0)
+
+- **Role change 422 error** — Next.js admin API proxy was dropping query parameters on POST requests; the `change_user_role` endpoint expects `?role=xxx` as a query param. Fixed by forwarding `searchParams` in the POST handler.
+- **User Management crash** — `useAuth()` called outside `AuthProvider`; fixed by adding `providers.tsx` client wrapper to root layout.
+- **Admin tabs missing** — `super_admin`/`org_admin` roles not recognized by sidebar; fixed with `isAdminRole()` helper.
+- **Role change `[object Object]`** — error detail safely stringified in alert dialog.
+- **prompt-manager `is_admin`** — updated to accept new RBAC roles.
+
+### Full Changelog
+
+See v0.7.0 entry below for complete RBAC system, streaming architecture, event type tables, session persistence details, and file-level change list.
+
+---
+
 ## v0.7.0 — RBAC Phase 1 + E2E Streaming (Feb 9, 2026)
 
 Release name: **rbac-streaming**
 
-**Status**: ✅ Released  
+**Status**: ✅ Superseded by v0.7.1  
 **Branch**: `feature/rbac-streaming-v07`
 
 ### Highlights
