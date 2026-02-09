@@ -1,84 +1,128 @@
 # Release Notes
 
-## v0.7.0 — Prompt & Skills Manager (Feb 9, 2026)
+## v0.6.9 — Prompt & Skills Manager (Feb 9, 2026)
 
 Release name: **prompt-skills-manager**
 
 **Status**: ✅ Released  
-**Tag**: `v0.7.0`  
-**Branch**: `feature/prompt-skills-manager`
+**Tag**: `v0.6.9`  
+**Branch**: `feature/prompt-skills-manager`  
+**Commits**: 38 files changed, +5,572 lines
 
 ### Highlights
 
-- Full **Prompt & Skills Manager** microservice (FastAPI, PostgreSQL-backed)
-- **Prompts tab** in sidebar with template CRUD, filtering, search, and variable rendering
-- **Template picker** dropdown in Agent Console prompt area
-- **10 seed platform templates** auto-loaded on first startup
-- **Skills CRUD API** with versioning, multi-tenant RBAC, and file-sync
-- **E2E test suite** for API and UI (Python + Playwright)
+- New **Prompt & Skills Manager** microservice — a standalone FastAPI service with full PostgreSQL persistence, JWT authentication, and multi-tenant RBAC
+- **Prompts tab** (`/prompts`) in sidebar with template CRUD, category filtering, full-text search, and `{{variable}}` rendering
+- **Edit & Version Control** — every template update creates a new immutable version with change summary; full version history viewer
+- **Template picker** dropdown in Agent Console prompt area with variable fill modal
+- **Clone** templates with one click for rapid iteration
+- **10 seed platform templates** auto-loaded on first startup covering sales, project management, architecture, development, QA, product, support, and compliance
+- **Skills CRUD API** with versioning, multi-tenant RBAC, file-sync from `claude-runner/skills/`
+- **E2E test suite** — 21 Python API tests + 11 Playwright UI tests, all running inside Docker
+- **Favicon fix** — PNG fallback for all browsers via Next.js dynamic route handlers
 
 ### Backend — prompt-manager Microservice
 
+A new independently deployable FastAPI microservice (`prompt-manager`) sharing the same PostgreSQL instance but managing its own tables and Alembic migration chain.
+
 | Feature | Status | Details |
-|---------|--------|---------|
-| SQLAlchemy ORM models | ✅ | `prompt_templates`, `skills`, `template_usage_log` |
-| Alembic migration 001 | ✅ | Initial schema with UUIDs, JSONB, constraints, indexes |
-| Template CRUD API | ✅ | List, Get, Create, Update (versioned), Delete (archive) |
-| Template Render API | ✅ | `{{variable}}` substitution with unresolved cleanup |
-| Template Publish/Clone | ✅ | Status lifecycle: draft → published → archived |
-| Skills CRUD API | ✅ | List, Get, Create, Update (versioned), Delete, Toggle |
-| Skills Sync from Files | ✅ | Import `claude-runner/skills/` YAML+MD into DB |
-| Categories API | ✅ | List with template/skill counts |
-| Usage Analytics | ✅ | Log usage, get stats |
-| JWT Auth Middleware | ✅ | Shared secret with backend, role extraction |
-| RBAC Visibility | ✅ | private/team/tenant/public filtering |
-| Auto-seed on Startup | ✅ | 10 platform templates when DB is empty |
-| Docker Compose | ✅ | Port 8083/9105, depends_on postgres |
+|---------|--------|---------||
+| SQLAlchemy ORM models | ✅ | `prompt_templates`, `skills`, `template_usage_log` with UUID PKs, JSONB fields |
+| Alembic migration 001 | ✅ | Initial schema with constraints, indexes, unique slugs per tenant+version |
+| Template CRUD API | ✅ | List (paginated, filtered), Get, Create, Update (versioned), Delete (soft archive) |
+| Template Render API | ✅ | `{{variable}}` substitution with unresolved variable cleanup |
+| Template Publish/Clone | ✅ | Status lifecycle: `draft` → `published` → `archived` / `deprecated` |
+| Template Version History | ✅ | `GET /templates/{id}/versions` returns all versions ordered by version number |
+| Skills CRUD API | ✅ | List, Get, Create, Update (versioned), Delete, Toggle enable/disable |
+| Skills Sync from Files | ✅ | Import `claude-runner/skills/` YAML+MD into DB on demand |
+| Categories API | ✅ | List all categories with template/skill counts |
+| Usage Analytics | ✅ | Log template usage events, get aggregate stats |
+| JWT Auth Middleware | ✅ | Shared secret with backend service, role extraction from token claims |
+| RBAC Visibility | ✅ | `private` / `team` / `tenant` / `public` filtering based on user context |
+| Auto-seed on Startup | ✅ | 10 platform templates seeded when `prompt_templates` table is empty |
+| Docker Compose | ✅ | Port 8083 internal / 9105 external, `depends_on: postgres`, skills volume mount |
 
 ### Frontend
 
 | Feature | Status | Details |
-|---------|--------|---------|
-| Next.js API Proxy | ✅ | `/api/prompt-manager/[...path]` → `http://prompt-manager:8083` |
-| Prompts List Page | ✅ | `/prompts` with filter, search, category badges |
-| New Template Modal | ✅ | Create with name, category, body, variables |
-| Use Template Modal | ✅ | Variable fill, live preview, Copy, Send to Agent |
-| Template Picker | ✅ | Dropdown in Agent Console prompt area |
-| Variable Fill Modal | ✅ | Typed inputs (string, text, enum, date, number) |
-| sessionStorage Prefill | ✅ | Prompts page → Agent Console integration |
-| Sidebar Navigation | ✅ | 📝 Prompts link added |
-| AboutModal v0.7.0 | ✅ | Version history and key features updated |
+|---------|--------|---------||
+| Next.js API Proxy | ✅ | `/api/prompt-manager/[...path]` → `http://prompt-manager:8083` with auth header forwarding |
+| Prompts List Page | ✅ | `/prompts` with category dropdown, status filter, full-text search, card layout |
+| New Template Modal | ✅ | Create with name, description, category, visibility, template body |
+| Edit Template Modal | ✅ | Edit body/description with mandatory change summary; auto-increments version |
+| Version History Modal | ✅ | View all versions with timestamps, status badges, expandable template bodies |
+| Use Template Modal | ✅ | Variable fill with typed inputs, live preview, Copy to clipboard, Send to Agent |
+| Clone Button | ✅ | One-click template duplication |
+| Template Picker | ✅ | `📝 Use Template` dropdown in Agent Console prompt area |
+| Variable Fill Modal | ✅ | Typed inputs: `string`, `text`, `enum` (dropdown), `date`, `number` |
+| sessionStorage Prefill | ✅ | Prompts page → Agent Console seamless prompt transfer |
+| Sidebar Navigation | ✅ | `📝 Prompts` link added to main navigation |
+| AboutModal | ✅ | Version history and key features updated |
+| Favicon (PNG) | ✅ | `icon.tsx` (32×32) + `apple-icon.tsx` (180×180) dynamic route handlers |
+| Dockerfile | ✅ | Fixed: `public/` directory now copied into standalone build |
 
 ### Seed Templates (10)
 
-| Template | Category | Variables |
-|----------|----------|-----------|
-| NHS SoW Generator | sales | 8 |
-| Project Charter | project-management | 5 |
-| Architecture Decision Record | architecture | 5 |
-| Code Review Checklist | development | 4 |
-| Test Strategy Document | qa | 5 |
-| PRD Writer | product | 6 |
-| User Guide Generator | support | 5 |
-| NHS Compliance Audit | compliance | 4 |
-| Weekly Status Report | project-management | 8 |
-| API Design Specification | architecture | 5 |
+| Template | Category | Variables | Description |
+|----------|----------|-----------|-------------|
+| NHS SoW Generator | sales | 8 | Statement of Work for NHS/enterprise customers |
+| Project Charter | project-management | 5 | Project initiation and charter documents |
+| Architecture Decision Record | architecture | 5 | ADR with context, decision, and consequences |
+| Code Review Checklist | development | 4 | Structured code review with language-specific focus |
+| Test Strategy Document | qa | 5 | Comprehensive test strategy and planning |
+| PRD Writer | product | 6 | Product Requirements Document generator |
+| User Guide Generator | support | 5 | End-user documentation with screenshots |
+| NHS Compliance Audit | compliance | 4 | NHS Digital compliance audit checklist |
+| Weekly Status Report | project-management | 8 | RAG status report with risks and actions |
+| API Design Specification | architecture | 5 | REST/GraphQL API design with OpenAPI spec |
 
 ### Database Changes
 
-- **New tables** (prompt-manager Alembic 001): `prompt_templates`, `skills`, `template_usage_log`
-- **Separate Alembic chain**: prompt-manager has its own `alembic_version` tracking
-- **No changes** to existing backend tables (001–004 unchanged)
-- Tables created via `Base.metadata.create_all()` on startup (Alembic optional)
+- **New tables** (prompt-manager Alembic `001_prompt_skills_tables`):
+  - `prompt_templates` — UUID PK, JSONB `variables`/`sample_values`, versioning fields, unique constraint on `(tenant_id, slug, version)`
+  - `skills` — UUID PK, JSONB `parameters`, versioning, enable/disable toggle
+  - `template_usage_log` — Usage tracking with template/user/tenant references
+- **Separate Alembic chain**: prompt-manager manages its own `alembic_version` row, independent of backend migrations
+- **No changes** to existing backend tables (migrations 001–004 unchanged)
+- Tables also created via `Base.metadata.create_all()` on startup for development convenience
 
 ### Bug Fixes
 
-- **JWT Secret Key alignment**: Backend and prompt-manager now share the same default secret via `JWT_SECRET_KEY` env var in docker-compose
+- **JWT Secret Key alignment**: Backend and prompt-manager now share the same default secret (`dev-secret-key-change-in-production`) via `JWT_SECRET_KEY` env var in `docker-compose.yml`
+- **Template picker dropdown**: Now correctly closes after clicking "Apply to Prompt" in Agent Console
+- **Favicon not showing**: `public/` directory was missing from Docker build; added `COPY public /app/public` and `cp -r public .next/standalone/public` to Dockerfile
 
 ### Testing
 
-- `tests/test_prompt_manager_api.py` — Python API E2E tests (health, auth, CRUD, render, categories)
-- `tests/e2e/prompts.spec.ts` — Playwright UI E2E tests (navigation, templates, picker, proxy)
+| Test Suite | Tests | Runner | Description |
+|------------|-------|--------|-------------|
+| `tests/test_prompt_manager_api.py` | 21 | Python (httpx) | Health, auth, CRUD lifecycle, render, clone, skills, categories, usage |
+| `tests/e2e/prompts.spec.ts` | 11 | Playwright | Prompts page navigation, templates display, modals, Agent Console picker, API proxy |
+
+**Run API tests**:
+```bash
+docker compose exec prompt-manager python /app/tests/test_prompt_manager_api.py -v
+```
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `prompt-manager/app/models.py` | SQLAlchemy ORM: `PromptTemplate`, `Skill`, `TemplateUsageLog` |
+| `prompt-manager/app/schemas.py` | Pydantic request/response schemas with variable definitions |
+| `prompt-manager/app/auth.py` | JWT middleware with role extraction and RBAC helpers |
+| `prompt-manager/app/database.py` | Async SQLAlchemy engine and session factory |
+| `prompt-manager/app/seeds.py` | 10 platform seed templates with variables and sample values |
+| `prompt-manager/app/repositories/` | Repository pattern: `template_repo`, `skill_repo`, `usage_repo` |
+| `prompt-manager/app/routers/` | API routers: `templates`, `skills`, `categories`, `usage` |
+| `prompt-manager/alembic/` | Migration chain with `001_prompt_skills_tables.py` |
+| `frontend/src/app/(app)/prompts/page.tsx` | Prompts list page with all modals |
+| `frontend/src/app/api/prompt-manager/[...path]/route.ts` | Next.js API proxy to prompt-manager |
+| `frontend/src/app/icon.tsx` | Dynamic PNG favicon (32×32) |
+| `frontend/src/app/apple-icon.tsx` | Dynamic Apple touch icon (180×180) |
+| `docs/Prompt_Skills_Manager_Design.md` | Full design specification |
+| `tests/test_prompt_manager_api.py` | Python API E2E test suite |
+| `tests/e2e/prompts.spec.ts` | Playwright UI E2E test suite |
 
 ---
 
