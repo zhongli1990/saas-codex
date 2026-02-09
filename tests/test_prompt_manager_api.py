@@ -19,15 +19,18 @@ Requirements:
 
 import argparse
 import json
+import os
 import sys
 import time
 import uuid
 
 import httpx
 
-BACKEND_URL = "http://localhost:9101"
-PROMPT_MANAGER_URL = "http://localhost:9105"
-FRONTEND_URL = "http://localhost:9100"
+# When running inside Docker Compose, use internal service names.
+# Override with env vars if running from host (e.g. localhost:9105).
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8080")
+PROMPT_MANAGER_URL = os.environ.get("PROMPT_MANAGER_URL", "http://prompt-manager:8083")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://frontend:3000")
 
 # Default admin credentials
 ADMIN_EMAIL = "admin@saas-codex.com"
