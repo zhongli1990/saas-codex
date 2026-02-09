@@ -6,6 +6,7 @@ const API_BASE = "/api";
 
 export interface User {
   id: string;
+  tenant_id: string | null;
   email: string;
   mobile: string | null;
   display_name: string | null;

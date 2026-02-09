@@ -102,6 +102,9 @@ function CodexPageContent() {
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const [streamingText, setStreamingText] = useState("");
+  const [activeToolCall, setActiveToolCall] = useState<{name: string; input?: any} | null>(null);
 
   // Template picker state
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
@@ -467,11 +470,53 @@ function CodexPageContent() {
     }
   }
 
+  // Cleanup EventSource on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Recover session: if we return to the page and status is running/stream-closed
+  // but there's no active EventSource, try to load the latest run from DB
+  useEffect(() => {
+    if ((status === "running" || status === "stream-closed") && !eventSourceRef.current && runId) {
+      (async () => {
+        try {
+          const r = await fetch(`/api/runs/${runId}/detail`);
+          if (r.ok) {
+            const data = await r.json();
+            if (data.events && data.events.length > 0) {
+              setEvents(data.events);
+              setStatus("completed");
+              setStreamingText("");
+              setActiveToolCall(null);
+            }
+          }
+        } catch {
+          // If we can't recover, just mark as completed so user isn't stuck
+          setStatus("stream-closed");
+        }
+      })();
+    }
+  }, [status, runId, setEvents, setStatus]);
+
   async function onRunPrompt() {
     if (!sessionId) return;
 
+    // Close any existing EventSource
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
     setStatus("running");
     setEvents([]);
+    setStreamingText("");
+    setActiveToolCall(null);
 
     // Persist user message to database
     await fetch(`/api/sessions/${sessionId}/messages`, {
@@ -499,6 +544,7 @@ function CodexPageContent() {
     const toolMessages: Array<{ role: string; content: string; metadata?: any }> = [];
 
     const es = new EventSource(`/api/runs/${nextRunId}/events`);
+    eventSourceRef.current = es;
     es.onmessage = (msg) => {
       try {
         const parsed = JSON.parse(msg.data);
@@ -509,7 +555,10 @@ function CodexPageContent() {
           const item = parsed.item;
           if (item.type === "agent_message" && item.text) {
             assistantContent = item.text;
+            setStreamingText("");
+            setActiveToolCall(null);
           } else if (item.type === "command_execution") {
+            setActiveToolCall(null);
             toolMessages.push({
               role: "tool",
               content: "shell",
@@ -520,9 +569,18 @@ function CodexPageContent() {
               }
             });
           }
+        } else if (parsed.type === "ui.message.assistant.delta") {
+          // Show streaming text in real-time
+          setStreamingText(prev => prev + (parsed.payload?.textDelta || ""));
         } else if (parsed.type === "ui.message.assistant.final") {
           assistantContent = parsed.payload?.text || assistantContent;
+          setStreamingText("");
+          setActiveToolCall(null);
+        } else if (parsed.type === "ui.tool.call" || parsed.type === "ui.tool.call.start") {
+          setActiveToolCall({ name: parsed.payload?.toolName || "tool", input: parsed.payload?.input });
+          setStreamingText("");
         } else if (parsed.type === "ui.tool.result") {
+          setActiveToolCall(null);
           toolMessages.push({
             role: "tool",
             content: parsed.payload?.toolName || "tool",
@@ -535,7 +593,10 @@ function CodexPageContent() {
 
         if (parsed.type === "run.completed" || parsed.type === "stream.closed") {
           setStatus("completed");
+          setStreamingText("");
+          setActiveToolCall(null);
           es.close();
+          eventSourceRef.current = null;
           
           // Persist assistant and tool messages to database
           (async () => {
@@ -565,7 +626,10 @@ function CodexPageContent() {
           })();
         } else if (parsed.type === "error") {
           setStatus(`error: ${parsed.payload?.message || parsed.message || "unknown"}`);
+          setStreamingText("");
+          setActiveToolCall(null);
           es.close();
+          eventSourceRef.current = null;
         }
       } catch {
         setEvents((prev: EventLine[]) => [...prev, { at: Date.now(), data: msg.data }]);
@@ -573,8 +637,25 @@ function CodexPageContent() {
     };
     es.onerror = () => {
       es.close();
+      eventSourceRef.current = null;
+      setStreamingText("");
+      setActiveToolCall(null);
       if (status === "running") {
-        setStatus("stream-closed");
+        // Try to recover from DB after a short delay
+        setTimeout(async () => {
+          try {
+            const r = await fetch(`/api/runs/${nextRunId}/detail`);
+            if (r.ok) {
+              const data = await r.json();
+              if (data.events && data.events.length > 0) {
+                setEvents(data.events);
+                setStatus("completed");
+                return;
+              }
+            }
+          } catch {}
+          setStatus("stream-closed");
+        }, 1000);
       }
     };
   }
@@ -1072,13 +1153,48 @@ function CodexPageContent() {
                 ))
                 }
                 {status === "running" && (
-                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg mr-8">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
-                    </div>
-                    <span className="text-sm text-blue-700">Agent is working...</span>
+                  <div className="space-y-2">
+                    {/* Show streaming assistant text as it arrives */}
+                    {streamingText && (
+                      <div className="rounded-lg p-3 bg-white border border-zinc-200 mr-8">
+                        <div className="text-xs font-medium text-zinc-500 mb-1 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                          Assistant is typing...
+                        </div>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {streamingText}
+                          </ReactMarkdown>
+                          <span className="inline-block w-2 h-4 bg-zinc-400 animate-pulse ml-0.5"></span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Show active tool call */}
+                    {activeToolCall && (
+                      <div className="rounded-lg p-3 bg-amber-50 border border-amber-200 mx-4">
+                        <div className="text-xs font-medium text-amber-700 flex items-center gap-2">
+                          <span className="animate-spin inline-block w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full"></span>
+                          Running: <span className="font-mono bg-amber-100 px-1.5 py-0.5 rounded">{activeToolCall.name}</span>
+                        </div>
+                        {activeToolCall.input && (
+                          <pre className="mt-1 text-[10px] font-mono text-amber-600 max-h-20 overflow-y-auto">
+                            {typeof activeToolCall.input === "string" ? activeToolCall.input : JSON.stringify(activeToolCall.input, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+                    {/* Show thinking indicator when no streaming content yet */}
+                    {!streamingText && !activeToolCall && (
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="flex items-center gap-1 text-2xl mb-2">
+                          <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🤖</span>
+                          <span className="animate-bounce" style={{ animationDelay: "150ms" }}>💭</span>
+                          <span className="animate-bounce" style={{ animationDelay: "300ms" }}>⚡</span>
+                        </div>
+                        <div className="text-sm text-zinc-600 font-medium">Agent is thinking...</div>
+                        <div className="text-xs text-zinc-400 mt-1">Processing your request</div>
+                      </div>
+                    )}
                   </div>
                 )}
                 </>

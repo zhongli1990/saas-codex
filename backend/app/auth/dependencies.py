@@ -104,10 +104,20 @@ async def get_current_user(
 
 
 async def require_admin(user: User = Depends(get_current_user)) -> User:
-    """Require admin role. Raises 403 if not admin."""
-    if user.role != "admin":
+    """Require admin role (super_admin or org_admin). Raises 403 if not admin."""
+    if user.role not in ("admin", "super_admin", "org_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
+        )
+    return user
+
+
+async def require_super_admin(user: User = Depends(get_current_user)) -> User:
+    """Require super_admin role. Raises 403 if not super admin."""
+    if user.role not in ("admin", "super_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super Admin access required",
         )
     return user

@@ -125,7 +125,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # pending, active, inactive, rejected
-    role: Mapped[str] = mapped_column(String(20), nullable=False, default="user")  # admin, user
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="editor")  # super_admin, org_admin, project_admin, editor, viewer
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
     approved_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True), nullable=True)

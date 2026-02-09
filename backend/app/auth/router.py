@@ -96,6 +96,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
             "sub": str(user.id),
             "email": user.email,
             "role": user.role,
+            "tenant_id": str(user.tenant_id) if user.tenant_id else None,
         }
     )
     

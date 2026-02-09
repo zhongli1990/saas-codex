@@ -4,12 +4,41 @@ import { useState, useEffect, useCallback } from "react";
 import { User, getToken } from "@/lib/auth";
 
 type UserStatus = "pending" | "active" | "inactive" | "rejected";
+type UserRole = "super_admin" | "org_admin" | "project_admin" | "editor" | "viewer";
+
+const VALID_ROLES: { value: UserRole; label: string }[] = [
+  { value: "super_admin", label: "Super Admin" },
+  { value: "org_admin", label: "Org Admin" },
+  { value: "project_admin", label: "Project Admin" },
+  { value: "editor", label: "Editor" },
+  { value: "viewer", label: "Viewer" },
+];
 
 const statusColors: Record<UserStatus, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  active: "bg-green-100 text-green-800",
-  inactive: "bg-zinc-100 text-zinc-800",
-  rejected: "bg-red-100 text-red-800",
+  pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+  active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  inactive: "bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300",
+  rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+};
+
+const roleColors: Record<string, string> = {
+  super_admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  org_admin: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  project_admin: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  editor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  viewer: "bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300",
+  admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  user: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+};
+
+const roleLabels: Record<string, string> = {
+  super_admin: "Super Admin",
+  org_admin: "Org Admin",
+  project_admin: "Project Admin",
+  editor: "Editor",
+  viewer: "Viewer",
+  admin: "Admin (legacy)",
+  user: "User (legacy)",
 };
 
 export default function UserManagementPage() {
@@ -18,6 +47,7 @@ export default function UserManagementPage() {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [tenants, setTenants] = useState<{id: string; name: string; slug: string}[]>([]);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -51,9 +81,22 @@ export default function UserManagementPage() {
     }
   }, [statusFilter]);
 
+  const fetchTenants = useCallback(async () => {
+    const token = getToken();
+    try {
+      const res = await fetch("/api/admin/tenants", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setTenants(await res.json());
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchTenants();
+  }, [fetchUsers, fetchTenants]);
 
   const handleAction = async (userId: string, action: "approve" | "reject" | "activate" | "deactivate") => {
     setActionLoading(userId);
@@ -79,15 +122,58 @@ export default function UserManagementPage() {
     }
   };
 
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setActionLoading(userId);
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/role?role=${newRole}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.detail || "Failed to change role");
+        return;
+      }
+      await fetchUsers();
+    } catch {
+      alert("Failed to change role");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTenantChange = async (userId: string, tenantId: string) => {
+    setActionLoading(userId);
+    const token = getToken();
+    try {
+      const param = tenantId ? `?tenant_id=${tenantId}` : "";
+      const res = await fetch(`/api/admin/users/${userId}/tenant${param}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.detail || "Failed to assign tenant");
+        return;
+      }
+      await fetchUsers();
+    } catch {
+      alert("Failed to assign tenant");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const pendingCount = users.filter(u => u.status === "pending").length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">User Management</h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            Manage user accounts and approvals
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">User Management</h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Manage user accounts, roles, and tenant assignments
           </p>
         </div>
         {pendingCount > 0 && (
@@ -137,6 +223,9 @@ export default function UserManagementPage() {
                   Role
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  Tenant
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                   Registered
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -161,8 +250,34 @@ export default function UserManagementPage() {
                       {user.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">
-                    {user.role}
+                  <td className="px-4 py-3">
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      disabled={actionLoading === user.id}
+                      className={`rounded-full px-2 py-1 text-xs font-medium border-0 cursor-pointer ${roleColors[user.role] || roleColors.editor}`}
+                    >
+                      {VALID_ROLES.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                      {/* Show legacy roles if present */}
+                      {!VALID_ROLES.find(r => r.value === user.role) && (
+                        <option value={user.role}>{roleLabels[user.role] || user.role}</option>
+                      )}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={user.tenant_id || ""}
+                      onChange={(e) => handleTenantChange(user.id, e.target.value)}
+                      disabled={actionLoading === user.id}
+                      className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300"
+                    >
+                      <option value="">No Tenant (Platform)</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-4 py-3 text-sm text-zinc-500">
                     {new Date(user.created_at).toLocaleDateString()}

@@ -114,7 +114,8 @@ def _is_valid_uuid(val: str) -> bool:
 
 
 async def create_initial_admin():
-    """Create initial admin user if none exists."""
+    """Create initial admin user if none exists, and seed sample tenants/groups."""
+    from .models import Tenant, Group, UserGroup
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@saas-codex.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
     
@@ -126,13 +127,54 @@ async def create_initial_admin():
             admin = User(
                 email=admin_email,
                 password_hash=get_password_hash(admin_password),
-                display_name="Administrator",
+                display_name="Platform Admin",
                 status="active",
-                role="admin"
+                role="super_admin"
             )
             db.add(admin)
             await db.commit()
             print(f"Created initial admin user: {admin_email}")
+        else:
+            # Migrate legacy 'admin' role to 'super_admin'
+            if existing.role == "admin":
+                existing.role = "super_admin"
+                await db.commit()
+                print(f"Migrated admin role to super_admin: {admin_email}")
+        
+        # Seed sample tenants if none exist
+        tenant_result = await db.execute(select(Tenant))
+        if not tenant_result.scalars().first():
+            nhs_tenant = Tenant(
+                name="NHS Birmingham Trust",
+                slug="nhs-birmingham",
+                status="active",
+                metadata_json={"type": "healthcare", "region": "West Midlands"}
+            )
+            enterprise_tenant = Tenant(
+                name="Enterprise Corp",
+                slug="enterprise-corp",
+                status="active",
+                metadata_json={"type": "enterprise", "industry": "technology"}
+            )
+            db.add_all([nhs_tenant, enterprise_tenant])
+            await db.flush()
+            
+            # Seed groups for each tenant
+            nhs_groups = [
+                Group(tenant_id=nhs_tenant.id, name="Administrators", description="Org Admins for NHS Trust"),
+                Group(tenant_id=nhs_tenant.id, name="Clinical Leads", description="Clinical oversight and compliance"),
+                Group(tenant_id=nhs_tenant.id, name="Developers", description="Development team"),
+                Group(tenant_id=nhs_tenant.id, name="Sales", description="Sales and pre-sales team"),
+            ]
+            enterprise_groups = [
+                Group(tenant_id=enterprise_tenant.id, name="Administrators", description="Org Admins for Enterprise Corp"),
+                Group(tenant_id=enterprise_tenant.id, name="Architecture", description="Solution architects"),
+                Group(tenant_id=enterprise_tenant.id, name="Developers", description="Development team"),
+                Group(tenant_id=enterprise_tenant.id, name="Stakeholders", description="View-only stakeholders"),
+            ]
+            db.add_all(nhs_groups + enterprise_groups)
+            await db.commit()
+            print("Seeded sample tenants and groups")
 
 
 @asynccontextmanager
