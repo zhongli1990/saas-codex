@@ -50,7 +50,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     router.push("/login");
   };
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin" || user?.role === "org_admin";
 
   return (
     <div className={`flex h-full flex-col p-4 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>

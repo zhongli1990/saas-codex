@@ -98,3 +98,10 @@ export async function getMe(): Promise<User | null> {
 export function logout(): void {
   removeToken();
 }
+
+/** Roles that grant admin-level access (sidebar tabs, /admin routes) */
+const ADMIN_ROLES = ["admin", "super_admin", "org_admin"];
+
+export function isAdminRole(role: string | undefined | null): boolean {
+  return !!role && ADMIN_ROLES.includes(role);
+}
