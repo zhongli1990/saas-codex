@@ -1,100 +1,36 @@
-import uuid
-from datetime import datetime
-from typing import Optional
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
+from .database import engine, Base
+from .routers import templates_router, skills_router, usage_router, categories_router
 
 
-app = FastAPI(title="Prompt Manager Service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables on startup (Alembic is preferred for production)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(title="Prompt & Skills Manager", version="0.7.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-
-class CreateTemplateRequest(BaseModel):
-    name: str
-    description: str = ""
-    template: str
-    variables: list[str] = []
-
-
-class TemplateResponse(BaseModel):
-    template_id: str
-    name: str
-    description: str
-    template: str
-    variables: list[str]
-    created_at: str
-    version: int
-
-
-class TemplateListResponse(BaseModel):
-    items: list[TemplateResponse]
-
-
-class RenderRequest(BaseModel):
-    params: dict[str, str]
-
-
-class RenderResponse(BaseModel):
-    rendered: str
-
-
-_templates: dict[str, dict] = {}
+# Mount routers
+app.include_router(templates_router)
+app.include_router(skills_router)
+app.include_router(usage_router)
+app.include_router(categories_router)
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.post("/templates", response_model=TemplateResponse)
-async def create_template(req: CreateTemplateRequest) -> TemplateResponse:
-    template_id = str(uuid.uuid4())
-    created_at = datetime.utcnow().isoformat() + "Z"
-    
-    template = {
-        "template_id": template_id,
-        "name": req.name,
-        "description": req.description,
-        "template": req.template,
-        "variables": req.variables,
-        "created_at": created_at,
-        "version": 1
-    }
-    _templates[template_id] = template
-    
-    return TemplateResponse(**template)
-
-
-@app.get("/templates", response_model=TemplateListResponse)
-async def list_templates() -> TemplateListResponse:
-    items = [TemplateResponse(**t) for t in _templates.values()]
-    return TemplateListResponse(items=items)
-
-
-@app.get("/templates/{template_id}", response_model=TemplateResponse)
-async def get_template(template_id: str) -> TemplateResponse:
-    template = _templates.get(template_id)
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
-    return TemplateResponse(**template)
-
-
-@app.post("/templates/{template_id}/render", response_model=RenderResponse)
-async def render_template(template_id: str, req: RenderRequest) -> RenderResponse:
-    template = _templates.get(template_id)
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
-    
-    rendered = template["template"]
-    for var, value in req.params.items():
-        rendered = rendered.replace(f"{{{{{var}}}}}", value)
-    
-    return RenderResponse(rendered=rendered)
+    return {"status": "ok", "service": "prompt-skills-manager", "version": "0.7.0"}

@@ -115,8 +115,17 @@ services:
   prompt-manager:
     build:
       context: ./prompt-manager
+    environment:
+      DATABASE_URL: postgresql+psycopg://saas:saas@postgres:5432/saas
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production-abc123}
+      GLOBAL_SKILLS_PATH: /app/skills
+      PORT: 8083
+    volumes:
+      - ./claude-runner/skills:/app/skills:ro
     ports:
       - "9105:8083"
+    depends_on:
+      - postgres
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8083/health');\""]
       interval: 10m
